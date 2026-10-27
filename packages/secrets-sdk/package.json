@@ -1,0 +1,48 @@
+{
+  "name": "@smartplane/secrets",
+  "version": "0.1.0",
+  "description": "Load secrets and variables from Smartplane into process.env at boot, with optional rotation refresh",
+  "license": "FSL-1.1-ALv2",
+  "homepage": "https://app.smartplane.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/get-smartplane/smartplane.git",
+    "directory": "packages/secrets-sdk"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "bun run scripts/build.ts && cp ../../LICENSE.md LICENSE.md",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.3",
+    "@types/node": "^24.13.3",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.4"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "@pc/cli",
+  "private": true,
+  "license": "FSL-1.1-ALv2",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "smartplane": "./src/bin.ts"
+  },
+  "scripts": {
+    "start": "bun run src/bin.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "bun run scripts/build.ts",
+    "build:npm": "bun run scripts/build.ts --npm-only"
+  },
+  "dependencies": {
+    "@effect/platform-node": "4.0.5",
+    "@modelcontextprotocol/client": "2.3.1",
+    "@pc/domain": "workspace:*",
+    "effect": "4.0.5"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.0.5",
+    "@types/bun": "^1.4.3",
+    "@types/node": "^24.13.3",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.4"
+  }
+}

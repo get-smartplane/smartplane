@@ -1,0 +1,22 @@
+# Copy to .dev.vars for `wrangler dev`. Never commit real values.
+APP_URL=http://localhost:5173
+API_URL=http://localhost:8787
+WORKOS_API_KEY=sk_test_replace_me
+WORKOS_CLIENT_ID=client_replace_me
+# At least 32 characters: openssl rand -base64 32
+WORKOS_COOKIE_PASSWORD=replace-with-at-least-32-random-characters
+WORKOS_WEBHOOK_SECRET=replace_me
+# Key-encryption key for secrets (AES-KW): openssl rand -base64 32
+SECRETS_KEK=replace-with-base64-of-32-random-bytes
+SECRETS_KEK_ID=local-1
+# Only while rotating the KEK: retired KEKs by id, kept until every data key is re-wrapped (secrets.rewrap).
+# SECRETS_PREVIOUS_KEKS={"local-0":"base64-of-the-old-32-byte-key"}
+# Optional MCP OAuth (clients like Claude and Cursor connect without pasting a token). Your AuthKit domain from
+# the WorkOS dashboard; enable Dynamic Client Registration there and add <API_URL>/mcp as a resource indicator.
+# Leave empty to accept only pc_ access tokens on /mcp.
+WORKOS_AUTHKIT_DOMAIN=
+# Optional: expected `aud` of MCP access tokens if it is not <API_URL>/mcp (e.g. your WorkOS client id).
+# MCP_OAUTH_AUDIENCE=
+# Optional: export traces/logs to a local collector such as Maple.
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+ENVIRONMENT=development

@@ -1,0 +1,77 @@
+name: Release
+
+# Push a tag `vX.Y.Z` to publish the `smartplane` CLI and `@smartplane/secrets` to npm and attach CLI
+# binaries to a GitHub Release. Both packages share one version: bump apps/cli and packages/secrets-sdk
+# package.json together, commit, then tag. Publishing uses npm trusted publishing (OIDC): no npm token is
+# stored; each package on npmjs.com trusts this repo, this workflow file and the `npm` environment.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Check, build, publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: npm
+    permissions:
+      contents: write # GitHub Release with the binaries
+      id-token: write # npm trusted publishing and provenance: the package links back to this workflow run
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24 # npm 11.5+, needed for trusted publishing
+          registry-url: https://registry.npmjs.org
+      - run: bun install --frozen-lockfile
+
+      # A tag that disagrees with the manifests would publish the wrong version under the right name.
+      - name: Tag matches package versions
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          for manifest in apps/cli/package.json packages/secrets-sdk/package.json; do
+            version=$(node -p "require('./$manifest').version")
+            if [ "$version" != "$tag" ]; then
+              echo "::error file=$manifest::version $version does not match tag v$tag"
+              exit 1
+            fi
+          done
+
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Test CLI and SDK
+        run: |
+          bun run --filter @pc/cli test
+          bun run --filter @smartplane/secrets test
+
+      - name: Build CLI (npm bundle and binaries)
+        working-directory: apps/cli
+        run: bun run build
+      - name: Build SDK
+        working-directory: packages/secrets-sdk
+        run: bun run build
+
+      - name: Publish smartplane
+        working-directory: apps/cli/dist/npm
+        run: npm publish --provenance --access public
+      - name: Publish @smartplane/secrets
+        working-directory: packages/secrets-sdk
+        run: npm publish --provenance --access public
+
+      - name: GitHub Release with binaries
+        working-directory: apps/cli/dist/bin
+        run: |
+          sha256sum smartplane-* > SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" smartplane-* SHA256SUMS --title "$GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

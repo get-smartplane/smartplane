@@ -1,0 +1,280 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * The marketing site's faces, self-hosted (all SIL OFL 1.1): Bricolage Grotesque for titles and big
+ * numbers, Hanken Grotesk for everything read, JetBrains Mono for real code, ids and hashes only.
+ */
+@font-face {
+    font-family: "Bricolage Grotesque";
+    src: url("/fonts/BricolageGrotesque-var.woff2") format("woff2");
+    font-weight: 200 800;
+    font-stretch: 75% 100%;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Hanken Grotesk";
+    src: url("/fonts/HankenGrotesk-var.woff2") format("woff2");
+    font-weight: 100 900;
+    font-display: swap;
+}
+@font-face {
+    font-family: "JetBrains Mono";
+    src: url("/fonts/JetBrainsMono-400.woff2") format("woff2");
+    font-weight: 400 500;
+    font-display: swap;
+}
+
+@theme inline {
+    --font-heading: "Bricolage Grotesque", "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "Bricolage Grotesque", "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+    --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    --color-success: var(--success);
+    --color-success-ink: var(--success-ink);
+    --color-warning: var(--warning);
+    --color-warning-ink: var(--warning-ink);
+    --color-danger-ink: var(--danger-ink);
+    --color-info: var(--info);
+    --color-info-ink: var(--info-ink);
+    --color-brand: var(--brand);
+    --color-brand-foreground: var(--brand-foreground);
+    --color-sky: var(--sky);
+    --color-sky-ink: var(--sky-ink);
+    --color-cloud-lit: var(--cloud-lit);
+    --color-cloud-half: var(--cloud-half);
+    --color-cloud-shade: var(--cloud-shade);
+    --color-plane: var(--plane);
+    --color-plane-line: var(--plane-line);
+    --color-plane-shade: var(--plane-shade);
+    --color-chart-allowed: var(--chart-allowed);
+    --color-chart-held: var(--chart-held);
+    --color-chart-blocked: var(--chart-blocked);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+ * Clear skies, as a work tool. Paper carries the screens and navy ink the text and the main button,
+ * as on smartplane.dev. The sky (with its pixel clouds and the outlined paper plane) is kept for the
+ * edges: sign-in, onboarding, empty states and the overview's header band.
+ * Status colour means one thing each: cobalt = cleared (allowed, active, intact), amber = held
+ * (pending, draft), red = blocked (denied, broken, removed); sky-blue info = observing only.
+ * Corners stay tight (4px), close to the site's square buttons.
+ */
+:root {
+    color-scheme: light;
+    --radius: 0.3rem;
+    --background: #fafcfe;
+    --foreground: #0f2140;
+    --card: #ffffff;
+    --card-foreground: var(--foreground);
+    --popover: #ffffff;
+    --popover-foreground: var(--foreground);
+    --primary: #0f2140;
+    --primary-foreground: #eef4fb;
+    --secondary: #edf2f8;
+    --secondary-foreground: #0f2140;
+    --muted: #eff3f8;
+    --muted-foreground: #4d6080;
+    --accent: #e4f0fb;
+    --accent-foreground: #0f2140;
+    --destructive: #c4342b;
+    --danger-ink: #9a2018;
+    --success: #2457c5;
+    --success-ink: #1d47a3;
+    --warning: #e39a1c;
+    --warning-ink: #6e4300;
+    --info: #74b5ea;
+    --info-ink: #1f5f96;
+    --brand: #2457c5;
+    --brand-foreground: #ffffff;
+    --border: #dfe6ef;
+    --input: #cfd9e6;
+    --ring: #2457c5;
+    --sky: #a9d2f3;
+    --sky-ink: #0f2140;
+    --cloud-lit: #ffffff;
+    --cloud-half: #eef3fa;
+    --cloud-shade: #d9e4f1;
+    --plane: #ffffff;
+    --plane-shade: #edf2f8;
+    --plane-line: #0b0b0c;
+    --chart-allowed: #2457c5;
+    --chart-held: #e39a1c;
+    --chart-blocked: #c4342b;
+    --sidebar: #f2f6fa;
+    --sidebar-foreground: #33476a;
+    --sidebar-primary: #2457c5;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #e3ebf4;
+    --sidebar-accent-foreground: #0f2140;
+    --sidebar-border: #e1e8f0;
+    --sidebar-ring: #2457c5;
+}
+
+/* Night sky: deep navy surfaces stepped by tone, never grey. */
+.dark {
+    color-scheme: dark;
+    --background: #0a1630;
+    --foreground: #eaf1fa;
+    --card: #0f1e3a;
+    --card-foreground: var(--foreground);
+    --popover: #132544;
+    --popover-foreground: var(--foreground);
+    --primary: #e4f0fb;
+    --primary-foreground: #0f2140;
+    --secondary: #172a4b;
+    --secondary-foreground: #eaf1fa;
+    --muted: #142645;
+    --muted-foreground: #9db1cd;
+    --accent: #1a3054;
+    --accent-foreground: #eef4fb;
+    --destructive: #e3475a;
+    --danger-ink: #f48a8f;
+    --success: #5b8ef0;
+    --success-ink: #9dbcf7;
+    --warning: #d99a33;
+    --warning-ink: #f2c46e;
+    --info: #74b5ea;
+    --info-ink: #a9d2f3;
+    --brand: #5b8ef0;
+    --brand-foreground: #0a1630;
+    --border: #1f3457;
+    --input: #2a426a;
+    --ring: #6f9cf2;
+    --sky: #12274b;
+    --sky-ink: #eaf1fa;
+    --cloud-lit: #2b4470;
+    --cloud-half: #213962;
+    --cloud-shade: #1a3156;
+    --plane: #eaf1fa;
+    --plane-shade: #b5c5dc;
+    --plane-line: #0a1630;
+    --chart-allowed: #5b8ef0;
+    --chart-held: #bf8a2e;
+    --chart-blocked: #e3475a;
+    --sidebar: #08122a;
+    --sidebar-foreground: #b5c5dc;
+    --sidebar-primary: #8fb2f5;
+    --sidebar-primary-foreground: #0a1630;
+    --sidebar-accent: #13254a;
+    --sidebar-accent-foreground: #eef4fb;
+    --sidebar-border: #16284a;
+    --sidebar-ring: #6f9cf2;
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+    html {
+        @apply bg-background font-sans antialiased;
+        font-kerning: normal;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+    h1, h2, h3 {
+        text-wrap: balance;
+    }
+    code, pre, kbd, samp {
+        @apply font-mono;
+        font-size: 0.92em;
+    }
+    ::selection {
+        background: var(--foreground);
+        color: var(--background);
+    }
+}
+
+/*
+ * Motion, for a tool people use all day: fast (under 200ms), decelerating, and only where it explains
+ * something (a surface arriving, a section unfolding, a press registering). Keyboard-opened surfaces
+ * and frequent toggles (tabs, filters) change instantly.
+ */
+@theme {
+    --ease-out-quint: cubic-bezier(0.23, 1, 0.32, 1);
+    --animate-reveal: reveal 160ms var(--ease-out-quint) both;
+    --animate-rise: rise 360ms var(--ease-out-quint) both;
+    --animate-step-in: step-in 180ms var(--ease-out-quint) both;
+}
+
+@keyframes reveal {
+    from {
+        opacity: 0;
+        transform: translateY(-3px);
+        filter: blur(2px);
+    }
+}
+
+/* A verify stage's mark settling as it changes (pending, running, done): small, quick, no overshoot. */
+@keyframes step-in {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+        filter: blur(2px);
+    }
+}
+
+/* Chart columns grow from the baseline once, when the overview first draws them. */
+@keyframes rise {
+    from {
+        transform: scaleY(0.001);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+@utility font-display {
+    font-family: var(--font-display);
+    font-weight: 650;
+    letter-spacing: -0.03em;
+}
+
+@utility tabular {
+    font-variant-numeric: tabular-nums;
+}

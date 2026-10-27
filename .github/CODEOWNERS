@@ -1,0 +1,5 @@
+# Every change needs approval from a code owner. Release and CI files are listed on their own so a later,
+# broader rule can never loosen who controls publishing.
+*                     @ianrumac
+/.github/             @ianrumac
+/LICENSE.md           @ianrumac

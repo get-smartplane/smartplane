@@ -1,0 +1,61 @@
+{
+  "name": "@pc/integrations",
+  "private": true,
+  "license": "FSL-1.1-ALv2",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "generate": "bun run scripts/generate.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@activepieces/piece-asana": "^0.7.2",
+    "@activepieces/piece-confluence": "^0.3.2",
+    "@activepieces/piece-discord": "^0.7.2",
+    "@activepieces/piece-figma": "^0.6.3",
+    "@activepieces/piece-github": "0.10.1",
+    "@activepieces/piece-gitlab": "^0.4.2",
+    "@activepieces/piece-gmail": "^0.18.1",
+    "@activepieces/piece-google-calendar": "^0.12.3",
+    "@activepieces/piece-google-drive": "^0.12.2",
+    "@activepieces/piece-google-sheets": "^0.18.2",
+    "@activepieces/piece-http": "^0.13.0",
+    "@activepieces/piece-jira-cloud": "^0.5.2",
+    "@activepieces/piece-linear": "^0.9.1",
+    "@activepieces/piece-microsoft-365-people": "^0.3.1",
+    "@activepieces/piece-microsoft-dynamics-365-business-central": "^0.3.0",
+    "@activepieces/piece-microsoft-dynamics-crm": "^0.4.1",
+    "@activepieces/piece-microsoft-excel-365": "^0.8.2",
+    "@activepieces/piece-microsoft-onedrive": "^0.6.1",
+    "@activepieces/piece-microsoft-outlook": "^0.7.3",
+    "@activepieces/piece-microsoft-outlook-calendar": "^0.3.1",
+    "@activepieces/piece-microsoft-sharepoint": "^0.4.2",
+    "@activepieces/piece-microsoft-teams": "^0.7.3",
+    "@activepieces/piece-microsoft-todo": "^0.5.1",
+    "@activepieces/piece-netsuite": "^0.2.1",
+    "@activepieces/piece-notion": "^0.7.5",
+    "@activepieces/piece-odoo": "^0.3.2",
+    "@activepieces/piece-quickbooks": "^0.3.3",
+    "@activepieces/piece-resend": "^0.5.2",
+    "@activepieces/piece-salesforce": "^0.9.4",
+    "@activepieces/piece-slack": "^0.23.1",
+    "@activepieces/piece-stripe": "^0.8.1",
+    "@activepieces/piece-todoist": "^0.6.1",
+    "@activepieces/piece-trello": "^0.7.1",
+    "@activepieces/piece-xero": "^0.8.1",
+    "@activepieces/piece-zendesk": "^0.5.1",
+    "@activepieces/piece-zoho-books": "^0.2.0",
+    "@activepieces/piece-zoho-crm": "^0.4.1",
+    "@pc/domain": "workspace:*",
+    "effect": "4.0.5"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.0.5",
+    "@types/bun": "^1.3.0",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.4"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@pc/domain",
+  "private": true,
+  "license": "FSL-1.1-ALv2",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "effect": "4.0.5"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.0.5",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.4"
+  }
+}

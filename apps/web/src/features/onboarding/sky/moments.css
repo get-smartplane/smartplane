@@ -1,0 +1,130 @@
+/*
+ * One-off onboarding moments: the rule bubble, the waiting orbit and landing, the departure, and the
+ * welcome's switches. Same rules as sky.css: transform and opacity only, with a still frame.
+ */
+
+/* The speech bubble: paper, ink outline, a tail pointing at its plane. Pops from the tail. */
+.onb-bubble {
+    --bubble-line: var(--plane-line);
+    position: relative;
+    max-width: 36rem;
+    padding: 0.75rem 1.1rem;
+    background: var(--card);
+    color: var(--foreground);
+    border: 2.5px solid var(--bubble-line);
+    border-radius: 18px;
+    transform-origin: 32px calc(100% + 14px);
+    animation: onb-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.dark .onb-bubble {
+    --bubble-line: var(--plane);
+}
+.onb-bubble::before,
+.onb-bubble::after {
+    content: "";
+    position: absolute;
+    left: 32px;
+    translate: -50% 0;
+    border-style: solid;
+    border-color: transparent;
+}
+.onb-bubble::before {
+    top: calc(100% + 1px);
+    border-width: 14px 11px 0;
+    border-top-color: var(--bubble-line);
+}
+.onb-bubble::after {
+    top: calc(100% - 2px);
+    border-width: 10.5px 7.5px 0;
+    border-top-color: var(--card);
+}
+@keyframes onb-pop {
+    from {
+        opacity: 0;
+        transform: scale(0.88);
+    }
+}
+
+/* Waiting for the first call: the plane circles; it is a status, so it stops the moment the call lands. */
+.onb-orbit {
+    animation: onb-orbit 3.4s linear infinite;
+}
+.onb-orbit[data-paused] {
+    animation-play-state: paused;
+}
+@keyframes onb-orbit {
+    to {
+        transform: rotate(360deg);
+    }
+}
+.onb-land {
+    animation: onb-land 560ms var(--ease-out-quint) both;
+}
+@keyframes onb-land {
+    from {
+        opacity: 0.5;
+        transform: translate(26px, -30px) rotate(-24deg);
+    }
+}
+.onb-check {
+    animation: onb-pop 380ms cubic-bezier(0.34, 1.56, 0.64, 1) 300ms both;
+}
+
+/* Done: the plane leaves to the right through the clouds, once. */
+.onb-flyoff {
+    animation: onb-flyoff 1500ms cubic-bezier(0.55, 0, 0.75, 0.6) 250ms both;
+}
+@keyframes onb-flyoff {
+    0% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: 1;
+    }
+    85% {
+        opacity: 1;
+    }
+    100% {
+        transform: translate(70vw, -90px) rotate(-10deg);
+        opacity: 0;
+    }
+}
+
+/* Welcome: granted tools arrive with the plane and switch on one by one. */
+.onb-arrive {
+    animation: onb-board 600ms var(--ease-out-quint) both;
+    animation-delay: calc(var(--i, 0) * 70ms);
+}
+.onb-switch {
+    transition: background-color 200ms var(--ease-out-quint);
+}
+.onb-switch-knob {
+    animation: onb-switch 260ms var(--ease-out-quint) both;
+    animation-delay: calc(500ms + var(--i, 0) * 140ms);
+}
+.onb-switch-track {
+    animation: onb-switch-track 260ms var(--ease-out-quint) both;
+    animation-delay: calc(500ms + var(--i, 0) * 140ms);
+}
+@keyframes onb-switch {
+    from {
+        transform: translateX(-14px);
+    }
+}
+@keyframes onb-switch-track {
+    from {
+        opacity: 0;
+    }
+}
+
+/* The still frame: each element rests in its final position; the leaving plane simply stays. */
+@media (prefers-reduced-motion: reduce) {
+    .onb-bubble,
+    .onb-orbit,
+    .onb-land,
+    .onb-check,
+    .onb-flyoff,
+    .onb-arrive,
+    .onb-switch-knob,
+    .onb-switch-track {
+        animation: none;
+    }
+}

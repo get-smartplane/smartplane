@@ -1,0 +1,26 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  // Shard `core` (developer and collaboration pieces). wrangler.business.jsonc deploys the same runner as
+  // smartplane-runner-business with the Microsoft 365, ERP and CRM pieces.
+  "name": "smartplane-runner",
+  "main": "src/shards/core.ts",
+  "compatibility_date": "2026-10-01",
+  // Pieces are Node-flavoured bundles (axios over node:http, Buffer, crypto).
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  // Pieces arrive minified; this trims the rest of the bundle (effect, catalog code paths).
+  "minify": true,
+  // Reachable only through the service binding from the API Worker: no workers.dev URL, no routes.
+  "workers_dev": false,
+  "preview_urls": false,
+  // Piece `store` state (`integration-store:` keys). It MUST be its own namespace, never the API's CACHE:
+  // pieces are third-party code, and the API caches signing keys (`oauth-jwks:v1:*`) in CACHE, so write
+  // access there would let a piece forge /mcp tokens. Both runner shards may share this namespace.
+  // `bun run --filter @pc/deploy production-config` refuses an overlay that reuses the API's id.
+  "kv_namespaces": [{ "binding": "STORE" }],
+  "vars": {
+    "ENVIRONMENT": "production",
+    // OTLP/HTTP base URL (traces + logs). Empty disables export; locally point it at Maple (http://localhost:4318).
+    "OTEL_EXPORTER_OTLP_ENDPOINT": ""
+  }
+}

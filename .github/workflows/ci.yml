@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: Secret scan (full history)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Known fake test values are listed in .gitleaksignore; anything else fails the build.
+      - name: gitleaks
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz | tar xz gitleaks
+          ./gitleaks git . --redact --no-banner
+
+  check:
+    name: Typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: Typecheck (every workspace, astro check included)
+        run: bun run typecheck
+      - name: Tests (every workspace)
+        run: bun run test
+      - name: Build dashboard
+        run: bun run --filter @pc/web build
+      # Bundles each Worker exactly as a deploy would, without credentials, so a broken import or a bundle
+      # over the size limit fails here instead of at deploy time.
+      - name: Bundle API Worker
+        working-directory: apps/api
+        run: bunx wrangler deploy --dry-run --outdir "$RUNNER_TEMP/api"
+      - name: Bundle integration runners
+        working-directory: apps/integrations
+        run: |
+          bunx wrangler deploy --dry-run --outdir "$RUNNER_TEMP/integrations"
+          bunx wrangler deploy --dry-run -c wrangler.business.jsonc --outdir "$RUNNER_TEMP/integrations-business"

@@ -1,0 +1,19 @@
+{
+  "name": "@pc/deploy",
+  "private": true,
+  "license": "FSL-1.1-ALv2",
+  "type": "module",
+  "scripts": {
+    "production-config": "bun src/production-config.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "effect": "4.0.5"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.3",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.4"
+  }
+}

@@ -1,0 +1,22 @@
+node_modules
+dist
+.astro
+.wrangler
+.dev.vars
+.env
+.env.*
+!.dev.vars.example
+!.env.example
+*.log
+.DS_Store
+
+# Production Cloudflare overlay and the configs generated from it (scripts/cloudflare/production-config.ts)
+deploy/production.json
+wrangler.production.json
+*.production.json
+!deploy/production.example.json
+
+# Third-party agent skills: restore with `npx skills experimental_install` (sources in skills-lock.json)
+.agents/skills/
+.claude/skills/
+.taste-skill/

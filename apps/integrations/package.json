@@ -1,0 +1,24 @@
+{
+  "name": "@pc/integrations-worker",
+  "private": true,
+  "license": "FSL-1.1-ALv2",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev -c wrangler.jsonc -c wrangler.business.jsonc",
+    "deploy": "wrangler deploy && wrangler deploy -c wrangler.business.jsonc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pc/domain": "workspace:*",
+    "@pc/integrations": "workspace:*",
+    "effect": "4.0.5"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261015.1",
+    "@effect/vitest": "4.0.5",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.4",
+    "wrangler": "^4.151.0"
+  }
+}

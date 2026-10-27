@@ -1,0 +1,104 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "smartplane-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Built-in skills (src/skills/builtin/*/SKILL.md) are bundled as text modules.
+  "rules": [{ "type": "Text", "globs": ["**/*.md"], "fallthrough": true }],
+  "observability": { "enabled": true },
+
+  // No routes, names or ids of a real deployment here: Wrangler creates the resources on first deploy.
+  // Smartplane's own production values are applied at deploy time (scripts/cloudflare/production-config.ts).
+  // On one hostname, route /api/*, /auth/*, /mcp*, /webhooks/*, /.well-known/oauth-protected-resource* and
+  // /health to this Worker and the rest to the dashboard, so the session cookie stays first-party.
+
+  // Primary relational store (orgs, RBAC, resources, grants, audit index).
+  "d1_databases": [
+    { "binding": "DB", "database_name": "smartplane", "migrations_dir": "migrations" }
+  ],
+  // Hot cache: token -> principal lookups, compiled guard lookups.
+  "kv_namespaces": [{ "binding": "CACHE" }],
+  // Immutable audit archive (enable R2 bucket lock / retention policy in the dashboard).
+  "r2_buckets": [
+    { "binding": "AUDIT_ARCHIVE", "bucket_name": "smartplane-audit-archive" },
+    // Skill bundle files, content-addressed per org: skills/<orgId>/<sha256>.
+    { "binding": "SKILLS", "bucket_name": "smartplane-skill-bundles" }
+  ],
+  // Workers AI: Clef decision models + the LLM that compiles guard rules.
+  "ai": { "binding": "AI" },
+  // Audit events go through a queue so request latency never depends on the log write.
+  "queues": {
+    "producers": [
+      { "binding": "AUDIT_QUEUE", "queue": "audit-events" },
+      // Skill version scans (only while SKILL_SCANNING is "on").
+      { "binding": "SKILL_SCANS", "queue": "skill-scans" },
+      // Guard verify runs: finding targets, drafting, review, example calls and Clef runs, one recompile.
+      { "binding": "GUARD_SELF_TESTS", "queue": "guard-self-tests" }
+    ],
+    "consumers": [
+      // Retries back off exponentially per message (5 s doubling, capped at 30 min; audit/consumer.ts), so 100
+      // retries ride out about two days of D1 or Durable Object trouble before a message reaches the DLQ.
+      { "queue": "audit-events", "max_batch_size": 100, "max_batch_timeout": 2, "max_retries": 100, "dead_letter_queue": "audit-events-dlq" },
+      // Replays dead-lettered audit events into the AuditLog DO (idempotent on event id) and logs each one at
+      // error level as `audit.dlq_message`: alert on it. See docs/audit-operations.md.
+      { "queue": "audit-events-dlq", "max_batch_size": 100, "max_batch_timeout": 30, "max_retries": 100 },
+      { "queue": "skill-scans", "max_batch_size": 4, "max_batch_timeout": 5, "max_retries": 3, "dead_letter_queue": "skill-scans-dlq" },
+      // One run per message, picked up at once. A message carries a run through as many stages as fit in the
+      // 15 min consumer wall time; a failed stage is re-queued by the consumer and marked failed after 3 tries.
+      // Batch size 1: each run gets its own invocation (own wall time and CPU), so one slow run never holds up
+      // another and quick-added rules verify side by side. Runs of different guards share no row or KV key
+      // (the guard row and `guard-verify:v1:<runId>`), so they never contend. Up to 20 invocations at once:
+      // a run keeps at most ~6 Workers AI requests in flight (Clef six at a time while testing), so 20 runs
+      // stay ~120 concurrent requests, inside Workers AI limits, while one org adding ten rules leaves room
+      // for others. Messages beyond that wait in the queue; they are not lost.
+      { "queue": "guard-self-tests", "max_batch_size": 1, "max_batch_timeout": 0, "max_retries": 2, "max_concurrency": 20, "dead_letter_queue": "guard-self-tests-dlq" }
+    ]
+  },
+  // Activepieces integrations run in their own Workers (apps/integrations, one per shard: core and business),
+  // reached over typed RPC. A piece whose shard is not bound offers no tools.
+  "services": [
+    { "binding": "INTEGRATIONS", "service": "smartplane-runner" },
+    { "binding": "INTEGRATIONS_BUSINESS", "service": "smartplane-runner-business" }
+  ],
+  // One AuditLog DO per org serialises writes so the hash chain stays gap-free.
+  // One RateLimiter DO per token counts secret deliveries (POST /api/secrets/deliver).
+  "durable_objects": {
+    "bindings": [
+      { "name": "AUDIT_LOG", "class_name": "AuditLog" },
+      { "name": "RATE_LIMITER", "class_name": "RateLimiter" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AuditLog"] }, { "tag": "v2", "new_sqlite_classes": ["RateLimiter"] }],
+  // Nightly: archive audit events to R2, expire grants/tokens, purge beyond retention.
+  "triggers": { "crons": ["17 3 * * *"] },
+
+  "vars": {
+    // Your deployment's public URLs (one hostname for both); `wrangler dev` overrides them from .dev.vars.
+    "APP_URL": "https://smartplane.example.com",
+    "API_URL": "https://smartplane.example.com",
+    "ENVIRONMENT": "production",
+    // Label of the current KEK (the key itself is the SECRETS_KEK secret). Change it when rotating.
+    "SECRETS_KEK_ID": "kek-2026-10",
+    "CLASSIFIER_MODEL": "@cf/cloudflare/clef-flash",
+    // Guard rule compiler on the verify request: needs JSON-schema output; best quality on the eval sets
+    // (`bun apps/api/scripts/eval-models.ts <model[:effort]> ...`, table in that script) at p95 ~21 s per draft.
+    "COMPILER_MODEL": "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
+    // Background self-test (example calls, the one recompile): the best-quality model on the same evals.
+    "BACKGROUND_MODEL": "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
+    // OTLP/HTTP base URL (traces + logs). Empty disables export; locally point it at Maple (http://localhost:4318).
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "",
+    // MCP OAuth: AuthKit domain that issues /mcp access tokens (e.g. "acme.authkit.app"). Empty = pc_ tokens only.
+    // Tokens must carry aud = <API_URL>/mcp (configure it as a resource indicator in AuthKit) or MCP_OAUTH_AUDIENCE.
+    "WORKOS_AUTHKIT_DOMAIN": "",
+    // WorkOS client ID: a public identifier (it appears in AuthKit redirect URLs), so it lives here, not in secrets.
+    "WORKOS_CLIENT_ID": "client_REPLACE_ME",
+    // Experimental skill scanning (builtin rules + Clef) and scan-policy gating: "off" or "on".
+    "SKILL_SCANNING": "off"
+  }
+  // Secrets (wrangler secret put / .dev.vars):
+  //   WORKOS_API_KEY, WORKOS_COOKIE_PASSWORD (>= 32 chars), WORKOS_WEBHOOK_SECRET,
+  //   SECRETS_KEK (base64 of 32 random bytes, AES-KW key-encryption key)
+  //   SECRETS_PREVIOUS_KEKS (optional, during KEK rotation): JSON {"<old kek id>": "<base64 key>"}; remove an
+  //   entry once POST /api/secrets/rewrap (or the nightly cron) reports remaining = 0
+}

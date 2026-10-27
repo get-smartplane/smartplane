@@ -1,0 +1,11 @@
+# Security headers for every dashboard asset and SPA route (Workers static assets apply this file).
+# CSP: everything same-origin (self-hosted fonts, the API on this hostname); no inline or eval'd script.
+# style-src allows inline <style> because Radix (react-remove-scroll) and Sonner inject style elements at
+# runtime. frame-ancestors 'none' (and X-Frame-Options for old browsers) stops clickjacking of approvals
+# and secret screens.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains

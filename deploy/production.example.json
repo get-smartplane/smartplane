@@ -1,0 +1,77 @@
+{
+  "workers": {
+    "api": {
+      "name": "primitive-context-api",
+      "routes": [
+        {
+          "pattern": "app.example.com/api/*",
+          "zone_name": "example.com"
+        },
+        {
+          "pattern": "app.example.com/auth/*",
+          "zone_name": "example.com"
+        },
+        {
+          "pattern": "app.example.com/mcp*",
+          "zone_name": "example.com"
+        },
+        {
+          "pattern": "app.example.com/webhooks/*",
+          "zone_name": "example.com"
+        },
+        {
+          "pattern": "app.example.com/.well-known/oauth-protected-resource*",
+          "zone_name": "example.com"
+        },
+        {
+          "pattern": "app.example.com/health",
+          "zone_name": "example.com"
+        }
+      ],
+      "vars": {
+        "APP_URL": "https://app.example.com",
+        "API_URL": "https://app.example.com",
+        "WORKOS_AUTHKIT_DOMAIN": "your-app.authkit.app",
+        "WORKOS_CLIENT_ID": "client_01EXAMPLE"
+      },
+      "d1": {
+        "DB": {
+          "database_name": "primitive-context",
+          "database_id": "00000000-0000-0000-0000-000000000000"
+        }
+      },
+      "kv": {
+        "CACHE": "00000000000000000000000000000000"
+      },
+      "r2": {
+        "AUDIT_ARCHIVE": "primitive-context-audit",
+        "SKILLS": "smartplane-skills"
+      },
+      "services": {
+        "INTEGRATIONS": "smartplane-integrations",
+        "INTEGRATIONS_BUSINESS": "smartplane-integrations-business"
+      }
+    },
+    "web": {
+      "name": "primitive-context-web",
+      "routes": [
+        {
+          "pattern": "app.example.com",
+          "custom_domain": true
+        }
+      ]
+    },
+    "integrations": {
+      "name": "smartplane-integrations",
+      "kv": {
+        "STORE": "11111111111111111111111111111111"
+      }
+    },
+    "integrations-business": {
+      "name": "smartplane-integrations-business",
+      "kv": {
+        "STORE": "11111111111111111111111111111111"
+      }
+    }
+  }
+}

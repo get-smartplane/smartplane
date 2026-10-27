@@ -1,0 +1,140 @@
+{
+  "source": "https://developers.notion.com/docs/mcp-supported-tools",
+  "retrievedAt": "2026-10-23",
+  "note": "Hosted Notion MCP (mcp.notion.com). Names, descriptions and argument names from Notion's public tool documentation; schemas trimmed to the arguments that page documents.",
+  "tools": [
+    {
+      "name": "notion-search",
+      "description": "Searches Notion pages and databases, or looks up a workspace user by name or email. Supports location (page, data source, or teamspace), creator or editor, date and title filters.",
+      "inputSchema": { "type": "object", "properties": {
+        "query": { "type": "string", "description": "Short, specific keywords or a page title" },
+        "query_type": { "type": "string", "enum": ["internal", "user"] },
+        "page_url": { "type": "string", "description": "Search within this page" },
+        "data_source_url": { "type": "string", "description": "Search within this data source (collection://...)" },
+        "teamspace_id": { "type": "string" },
+        "filters": { "type": "object", "properties": { "created_by_user_ids": { "type": "array", "items": { "type": "string" } }, "title_only": { "type": "boolean" } } }
+      }, "required": ["query"] },
+      "annotations": { "title": "Search Notion", "readOnlyHint": true }
+    },
+    {
+      "name": "notion-fetch",
+      "description": "Retrieves content from a Notion page, database, data source, or saved database view by its URL or ID. Fetching a database returns its data sources (collection://...) with their schema and templates.",
+      "inputSchema": { "type": "object", "properties": {
+        "id": { "type": "string", "description": "Page, database or data source URL or ID" },
+        "include_file_urls": { "type": "boolean" }
+      }, "required": ["id"] },
+      "annotations": { "title": "Fetch Notion content", "readOnlyHint": true }
+    },
+    {
+      "name": "notion-create-pages",
+      "description": "Creates one or more Notion pages with specified properties and content. A page under a data source parent is a new database row. Supports applying database templates.",
+      "inputSchema": { "type": "object", "properties": {
+        "parent": { "type": "object", "description": "Where to create the pages", "properties": { "page_id": { "type": "string" }, "data_source_id": { "type": "string" }, "database_id": { "type": "string" }, "teamspace_id": { "type": "string" } } },
+        "pages": { "type": "array", "items": { "type": "object", "properties": { "properties": { "type": "object", "description": "Property values, e.g. {\"title\": \"...\", \"Status\": \"Not started\"}" }, "content": { "type": "string", "description": "Notion-flavoured Markdown; '- [ ] item' is a to-do block" }, "icon": { "type": "string" }, "template_id": { "type": "string" } } } },
+        "creation_mode": { "type": "string", "enum": ["draft"] },
+        "allow_async": { "type": "boolean" }
+      }, "required": ["pages"] },
+      "annotations": { "title": "Create pages", "readOnlyHint": false, "destructiveHint": false }
+    },
+    {
+      "name": "notion-update-page",
+      "description": "Update a Notion page's properties, content, icon, or cover, or apply a database template to an existing page. Commands: update_properties (set property values such as Status or a checkbox), update_content (search-and-replace edits), replace_content, apply_template.",
+      "inputSchema": { "type": "object", "properties": {
+        "page_id": { "type": "string", "description": "The page (or database row) to update" },
+        "command": { "type": "string", "enum": ["update_properties", "update_content", "replace_content", "apply_template"] },
+        "properties": { "type": "object", "description": "For update_properties: property name to new value, e.g. {\"Status\": \"Done\", \"Done\": \"__YES__\"}" },
+        "content_updates": { "type": "array", "description": "For update_content", "items": { "type": "object", "properties": { "old_str": { "type": "string" }, "new_str": { "type": "string" }, "replace_all_matches": { "type": "boolean" } } } },
+        "new_str": { "type": "string", "description": "For replace_content: the page's new Markdown" },
+        "template_id": { "type": "string" },
+        "icon": { "type": "string" },
+        "allow_async": { "type": "boolean" }
+      }, "required": ["page_id", "command"] },
+      "annotations": { "title": "Update page", "readOnlyHint": false, "destructiveHint": true }
+    },
+    {
+      "name": "notion-move-pages",
+      "description": "Move one or more Notion pages or databases to a new parent.",
+      "inputSchema": { "type": "object", "properties": {
+        "page_or_database_ids": { "type": "array", "items": { "type": "string" } },
+        "new_parent": { "type": "object", "properties": { "page_id": { "type": "string" }, "data_source_id": { "type": "string" }, "teamspace_id": { "type": "string" } } }
+      }, "required": ["page_or_database_ids", "new_parent"] },
+      "annotations": { "title": "Move pages", "readOnlyHint": false, "destructiveHint": false }
+    },
+    {
+      "name": "notion-duplicate-page",
+      "description": "Duplicate a Notion page within your workspace. Completes asynchronously.",
+      "inputSchema": { "type": "object", "properties": { "page_id": { "type": "string" } }, "required": ["page_id"] },
+      "annotations": { "title": "Duplicate page", "readOnlyHint": false, "destructiveHint": false }
+    },
+    {
+      "name": "notion-delete-pages",
+      "description": "Move up to 20 Notion pages to Trash. Database rows are pages. The call must set user_confirmed: true. Items in Trash can be restored with notion-restore-pages.",
+      "inputSchema": { "type": "object", "properties": {
+        "page_ids": { "type": "array", "items": { "type": "string" } },
+        "user_confirmed": { "type": "boolean" }
+      }, "required": ["page_ids", "user_confirmed"] },
+      "annotations": { "title": "Delete pages", "readOnlyHint": false, "destructiveHint": true }
+    },
+    {
+      "name": "notion-restore-pages",
+      "description": "Restore up to 20 Notion pages or databases from Trash to where they were before they were deleted.",
+      "inputSchema": { "type": "object", "properties": { "page_ids": { "type": "array", "items": { "type": "string" } } }, "required": ["page_ids"] },
+      "annotations": { "title": "Restore pages", "readOnlyHint": false, "destructiveHint": false }
+    },
+    {
+      "name": "notion-create-database",
+      "description": "Creates a new Notion database, initial data source, and initial view with the specified properties.",
+      "inputSchema": { "type": "object", "properties": {
+        "parent": { "type": "object", "properties": { "page_id": { "type": "string" } } },
+        "title": { "type": "string" },
+        "properties": { "type": "object", "description": "Column schema, e.g. {\"Status\": {\"type\": \"status\"}}" }
+      }, "required": ["properties"] },
+      "annotations": { "title": "Create database", "readOnlyHint": false, "destructiveHint": false }
+    },
+    {
+      "name": "notion-update-data-source",
+      "description": "Update a Notion data source's properties (columns), name, description, or page layout. Omitted select or status options are removed.",
+      "inputSchema": { "type": "object", "properties": {
+        "data_source_id": { "type": "string" },
+        "title": { "type": "string" },
+        "properties": { "type": "object" },
+        "page_layout": { "type": "object" }
+      }, "required": ["data_source_id"] },
+      "annotations": { "title": "Update data source", "readOnlyHint": false, "destructiveHint": true }
+    },
+    {
+      "name": "notion-query-data-sources",
+      "description": "Query Notion data sources with SQL, read rows from one data source (mode rows), or run a saved view (mode view).",
+      "inputSchema": { "type": "object", "properties": {
+        "mode": { "type": "string", "enum": ["sql", "rows", "view"] },
+        "data_source_url": { "type": "string", "description": "collection://... of the data source to read" },
+        "query": { "type": "string", "description": "SQL for mode sql" },
+        "filter": { "type": "object" },
+        "limit": { "type": "number" }
+      }, "required": ["mode"] },
+      "annotations": { "title": "Query data sources", "readOnlyHint": true }
+    },
+    {
+      "name": "notion-create-comment",
+      "description": "Add a comment to a page or specific content. Supports page-level comments, block-level comments, and replies to existing discussions.",
+      "inputSchema": { "type": "object", "properties": {
+        "page_id": { "type": "string" },
+        "discussion_id": { "type": "string" },
+        "markdown": { "type": "string" }
+      }, "required": ["markdown"] },
+      "annotations": { "title": "Add a comment", "readOnlyHint": false, "destructiveHint": false }
+    },
+    {
+      "name": "notion-get-comments",
+      "description": "Lists all comments and discussions on a page, including block-level and resolved threads.",
+      "inputSchema": { "type": "object", "properties": { "page_id": { "type": "string" }, "include_resolved": { "type": "boolean" } }, "required": ["page_id"] },
+      "annotations": { "title": "Get comments", "readOnlyHint": true }
+    },
+    {
+      "name": "notion-get-users",
+      "description": "Lists users in the workspace.",
+      "inputSchema": { "type": "object", "properties": { "query": { "type": "string" } } },
+      "annotations": { "title": "Get users", "readOnlyHint": true }
+    }
+  ]
+}

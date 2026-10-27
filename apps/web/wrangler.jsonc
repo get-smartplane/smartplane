@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Dashboard SPA served purely from Workers static assets: no Worker script runs.
+  "name": "smartplane-web",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    // The Vite build output; named here so `wrangler deploy -c <production config>` finds it too.
+    "directory": "./dist",
+    // Unknown paths return index.html so TanStack Router can resolve client-side routes.
+    "not_found_handling": "single-page-application"
+  },
+  // Give it your dashboard hostname as a custom domain; the API Worker's routes take the API paths on it
+  // (see apps/api/wrangler.jsonc). Smartplane's own domain is applied at deploy time.
+  "observability": { "enabled": true }
+}

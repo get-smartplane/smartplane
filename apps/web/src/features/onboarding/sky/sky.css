@@ -1,0 +1,113 @@
+/*
+ * The onboarding sky: the landing's daylight sky (dusk in dark mode), pixel clouds and paper planes.
+ * Onboarding is seen once, so moments are allowed some character (an arc, a pop), but every move is
+ * transform or opacity, under ~650ms unless it is ambient, never blocks input, and has a still frame:
+ * under reduced motion each animated element rests in its final, composed position.
+ */
+
+.onb-sky {
+    background: linear-gradient(in oklch 180deg, var(--sky) 0%, oklch(from var(--sky) calc(l + 0.06) c h) 38%, var(--background) 78%);
+}
+.dark .onb-sky {
+    /* Dusk: the night navy warming to a muted plum at the horizon. */
+    background: linear-gradient(in oklch 180deg, #0c1c3a 0%, #1c2a57 42%, #362f5d 74%, #4a3657 100%);
+}
+
+/* Clouds drift slowly and alternate, so the loop never jumps. Ambient, so it may be long. */
+.onb-cloud {
+    animation: onb-drift var(--drift, 90s) cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+    animation-delay: var(--offset, 0s);
+}
+@keyframes onb-drift {
+    to {
+        transform: translate3d(var(--dx, 6vw), 0, 0);
+    }
+}
+
+/* The route plane: glides between waypoints (transform transition) while an inner arc lifts it. */
+/* Travel eases in and out so it lines up with the arc: lift-off, peak mid-way, touchdown together. */
+.onb-route-plane {
+    transition: transform 660ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+.onb-hop {
+    animation: onb-hop 660ms both;
+}
+@keyframes onb-hop {
+    0% {
+        transform: translateY(0) rotate(0deg);
+        animation-timing-function: cubic-bezier(0.33, 0, 0.67, 1);
+    }
+    50% {
+        transform: translateY(-14px) rotate(-8deg);
+        animation-timing-function: cubic-bezier(0.33, 0, 0.67, 1);
+    }
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+}
+/* Speed lines left behind on a hop; they fade as the plane settles. */
+.onb-whoosh {
+    opacity: 0;
+    animation: onb-whoosh 700ms var(--ease-out-quint) both;
+}
+@keyframes onb-whoosh {
+    0% {
+        opacity: 0;
+        transform: translateX(10px) scaleX(0.6);
+    }
+    30% {
+        opacity: 0.85;
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(-14px) scaleX(1);
+    }
+}
+
+/* A tool card boarding the plane: a short arc in from the left, settling under the wing. */
+.onb-board {
+    animation: onb-board 560ms var(--ease-out-quint) both;
+}
+@keyframes onb-board {
+    0% {
+        opacity: 0;
+        transform: translate(-28px, 10px) rotate(-2deg);
+    }
+    55% {
+        opacity: 1;
+        transform: translate(4px, -4px) rotate(0.5deg);
+    }
+    100% {
+        transform: none;
+    }
+}
+
+/* Doodle people taking seats, one after another. */
+.onb-seat-in {
+    animation: onb-seat 360ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation-delay: calc(var(--i, 0) * 55ms);
+    transform-origin: 50% 100%;
+}
+@keyframes onb-seat {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.92);
+    }
+}
+
+/* The still frame: every element rests where its animation would end. */
+@media (prefers-reduced-motion: reduce) {
+    .onb-cloud,
+    .onb-hop,
+    .onb-whoosh,
+    .onb-board,
+    .onb-seat-in {
+        animation: none;
+    }
+    .onb-whoosh {
+        display: none;
+    }
+    .onb-route-plane {
+        transition: none;
+    }
+}
