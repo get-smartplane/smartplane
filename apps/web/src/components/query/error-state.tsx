@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { UnauthorizedRedirect } from "@/features/auth/unauthorized-redirect"
 import { describeError } from "@/lib/api/describe-error"
 import type { ApiError } from "@/lib/api/errors"
+import { signInRequired } from "@/lib/api/sign-in-required"
 
 interface ErrorStateProps {
   readonly error: ApiError
@@ -11,7 +12,7 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({ error, onRetry }: ErrorStateProps) {
-  if (error._tag === "Unauthorized") return <UnauthorizedRedirect reason={error.reason} />
+  if (signInRequired(error)) return <UnauthorizedRedirect reason={error.reason} />
   const { title, description } = describeError(error)
   return (
     <Alert variant={error._tag === "TransportFailure" ? "default" : "destructive"}>

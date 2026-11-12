@@ -1,6 +1,6 @@
 import { HttpApiMiddleware, HttpApiSecurity } from "effect/http-api"
 import { CurrentDeliveryCaller } from "../access/machine-token"
-import { Unauthorized } from "../errors"
+import { Unauthorized, UpstreamFailure } from "../errors"
 import { CurrentPrincipal, CurrentUser } from "../principal"
 
 /** Sealed WorkOS session cookie set by the browser auth routes in apps/api. */
@@ -15,13 +15,14 @@ const session = HttpApiSecurity.apiKey({ key: SessionCookie, in: "cookie" })
  */
 export class Authentication extends HttpApiMiddleware.Service<Authentication, { provides: CurrentPrincipal }>()(
   "@pc/domain/Authentication",
-  { error: Unauthorized, security: { session, bearer: HttpApiSecurity.bearer } }
+  // UpstreamFailure: the identity provider is unreachable, so the session could not be checked (not rejected).
+  { error: [Unauthorized, UpstreamFailure], security: { session, bearer: HttpApiSecurity.bearer } }
 ) {}
 
 /** Session-only authentication that does not require an org; used to create the first one. */
 export class SessionAuthentication extends HttpApiMiddleware.Service<SessionAuthentication, { provides: CurrentUser }>()(
   "@pc/domain/SessionAuthentication",
-  { error: Unauthorized, security: { session } }
+  { error: [Unauthorized, UpstreamFailure], security: { session } }
 ) {}
 
 /**
