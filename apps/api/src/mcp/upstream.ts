@@ -1,7 +1,8 @@
 import { accountModeOf, type Actor, type McpServerConfig, type Principal, type Resource, UpstreamFailure } from "@pc/domain"
 import { Context, Duration, Effect, Layer, Option, Redacted, Schema } from "effect"
 import { ConnectionResolver } from "../connections/resolver"
-import { KvCache } from "../platform/kv"
+import { logBindingFailure } from "../platform/binding-call"
+import { KvCache, missOnFailure } from "../platform/kv"
 import { Secrets } from "../secrets/secrets"
 import { upstreamToolsKey, upstreamUserToolsKey } from "./cache-keys"
 import { McpTool, type ToolResult, type UpstreamTarget } from "./sdk"
@@ -85,16 +86,14 @@ export class Upstream extends Context.Service<Upstream, {
         listTools: Effect.fn("Upstream.listTools")(function*(server: Resource, caller: UpstreamCaller) {
           yield* Effect.annotateCurrentSpan({ "mcp.server": server.id })
           const key = cacheKey(server, caller)
-          const cached = yield* cache.get(key, CachedTools)
+          const cached = yield* missOnFailure(cache.get(key, CachedTools))
           if (Option.isSome(cached)) return cached.value
           const tools = yield* withCredential(server, caller, (upstream) => client.listTools(upstream)).pipe(
             Effect.timeoutOrElse({ duration: ListTimeout, orElse: () => Effect.fail(failure(server, "the server did not list its tools in time")) })
           )
           // Several verify runs (or gateway sessions) can list the same server at once and write this key
           // together; KV refuses more than one write per key per second. A lost cache write costs a refetch only.
-          yield* cache.set(key, CachedTools, tools, ToolListTtlSeconds).pipe(
-            Effect.catchDefect((defect) => Effect.logWarning("tool list cache write failed", defect))
-          )
+          yield* cache.set(key, CachedTools, tools, ToolListTtlSeconds).pipe(logBindingFailure("tool list cache write"))
           return tools
         }),
         callTool: Effect.fn("Upstream.callTool")(function*(server: Resource, caller: UpstreamCaller, tool: string, args: Readonly<Record<string, unknown>>) {

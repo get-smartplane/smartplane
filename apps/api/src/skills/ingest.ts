@@ -7,6 +7,7 @@ import { AppConfig, skillScanningEnabled } from "../platform/config"
 import type { SkillBundle } from "./bundle/bundle"
 import { SkillScanQueue } from "./scan/queue"
 import { SkillBlobs } from "./storage/blobs"
+import { logBindingFailure } from "../platform/binding-call"
 import { SkillVersionsRepo } from "./storage/versions-repo"
 
 /**
@@ -30,7 +31,7 @@ export class SkillIngest extends Context.Service<SkillIngest, {
       // Best effort: a concurrent ingest of the same bytes that has put but not yet inserted can still lose its
       // blob in this window; the usage check closes it for every version already stored.
       const discard = (orgId: OrgId, created: ReadonlyArray<string>) =>
-        Effect.forEach(created, (sha256) => Effect.flatMap(versions.usesBlob(orgId, sha256), (used) => (used ? Effect.void : blobs.remove(orgId, sha256))), {
+        Effect.forEach(created, (sha256) => Effect.flatMap(versions.usesBlob(orgId, sha256), (used) => (used ? Effect.void : blobs.remove(orgId, sha256).pipe(logBindingFailure("unused skill blob delete")))), {
           discard: true
         })
 
@@ -54,7 +55,7 @@ export class SkillIngest extends Context.Service<SkillIngest, {
         // Blobs before the manifest, so a stored version never lists a file R2 does not have.
         const created = new Set<string>()
         const put = (file: SkillBundle["files"][number]) =>
-          Effect.map(blobs.put(resource.orgId, file.entry.sha256, file.bytes), (fresh) => void (fresh && created.add(file.entry.sha256)))
+          Effect.map(Effect.orDie(blobs.put(resource.orgId, file.entry.sha256, file.bytes)), (fresh) => void (fresh && created.add(file.entry.sha256)))
         const number = yield* Effect.forEach(bundle.files, put, { concurrency: 8, discard: true }).pipe(
           Effect.andThen(versions.insert(draft)),
           Effect.onError(() => discard(resource.orgId, Array.from(created)))
@@ -70,7 +71,8 @@ export class SkillIngest extends Context.Service<SkillIngest, {
           files: version.files.length,
           scanStatus: version.scanStatus
         })
-        if (scanning) yield* queue.send({ orgId: resource.orgId, versionId: version.id })
+        // The version is stored either way; unqueued it stays `pending` (unusable) until an admin requests a rescan.
+        if (scanning) yield* queue.send({ orgId: resource.orgId, versionId: version.id }).pipe(logBindingFailure("skill scan enqueue"))
         if (version.active) {
           yield* versions.activate(version, user.userId)
           yield* audit.by(principal, "skill.activated", target, { versionId: version.id, version: number, contentHash: version.contentHash, first: true })

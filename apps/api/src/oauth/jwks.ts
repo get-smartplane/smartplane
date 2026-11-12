@@ -1,7 +1,8 @@
 import { UpstreamFailure } from "@pc/domain"
 import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
-import { KvCache } from "../platform/kv"
+import { logBindingFailure } from "../platform/binding-call"
+import { KvCache, missOnFailure } from "../platform/kv"
 
 const optional = Schema.optionalKey(Schema.String)
 
@@ -31,12 +32,15 @@ export class AuthKitKeys extends Context.Service<AuthKitKeys, {
           Effect.flatMap(HttpClientResponse.schemaBodyJson(JwkSet)),
           Effect.mapError((error) => new UpstreamFailure({ upstream: "authkit", message: `jwks: ${error.message}` }))
         )
-        yield* cache.set(`oauth-jwks:v1:${jwksUrl}`, CachedJwks, { fetchedAt: yield* Clock.currentTimeMillis, keys: set.keys }, CacheTtlSeconds)
+        // Concurrent logins refetch together and KV allows one write per key per second: a lost write must not fail a login.
+        yield* cache.set(`oauth-jwks:v1:${jwksUrl}`, CachedJwks, { fetchedAt: yield* Clock.currentTimeMillis, keys: set.keys }, CacheTtlSeconds).pipe(
+          logBindingFailure("JWKS cache write")
+        )
         return set
       })
 
       const forKey = Effect.fn("AuthKitKeys.forKey")(function*(jwksUrl: string, kid: string | undefined) {
-        const cached = yield* cache.get(`oauth-jwks:v1:${jwksUrl}`, CachedJwks)
+        const cached = yield* missOnFailure(cache.get(`oauth-jwks:v1:${jwksUrl}`, CachedJwks))
         if (Option.isNone(cached)) return yield* fetchKeys(jwksUrl)
         const known = cached.value.keys.some((key) => kid === undefined || key.kid === kid)
         const stale = (yield* Clock.currentTimeMillis) - cached.value.fetchedAt > RefetchAfterMs

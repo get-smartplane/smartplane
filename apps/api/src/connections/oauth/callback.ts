@@ -10,6 +10,7 @@ import { upstreamToolsKey, upstreamUserToolsKey } from "../../mcp/cache-keys"
 import { AppConfig } from "../../platform/config"
 import { Ids } from "../../platform/ids"
 import { KvCache } from "../../platform/kv"
+import { logBindingFailure } from "../../platform/binding-call"
 import { ResourcesRepo } from "../../resources/resources-repo"
 import { Secrets } from "../../secrets/secrets"
 import { ConnectionsRepo } from "../connections-repo"
@@ -119,7 +120,7 @@ export class ConnectionCallback extends Context.Service<ConnectionCallback, {
         }
         yield* connections.put(connection, yield* vault.seal(credential))
         // A new account may see other tools than the one it replaces.
-        yield* cache.remove(pending.owner === null ? upstreamToolsKey(resource.id) : upstreamUserToolsKey(resource.id, pending.owner))
+        yield* cache.remove(pending.owner === null ? upstreamToolsKey(resource.id) : upstreamUserToolsKey(resource.id, pending.owner)).pipe(logBindingFailure("tool list cache invalidation"))
         yield* pin(principal, resource, pending)
         yield* audit.by(principal, "connection.connected", { type: "resource", id: resource.id }, {
           connectionId: connection.id,

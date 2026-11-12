@@ -13,7 +13,7 @@ const unavailable = (cause: unknown) => new AuditUnavailable({ message: `audit l
 export class AuditLogClient extends Context.Service<AuditLogClient, {
   /** Idempotent on event id; a rejected RPC (D1 blip, object reset) is a typed, retryable failure. */
   readonly append: (orgId: OrgId, events: ReadonlyArray<AuditEvent>) => Effect.Effect<number, AuditUnavailable>
-  readonly verify: (orgId: OrgId, fromSeq: number) => Effect.Effect<ChainVerification>
+  readonly verify: (orgId: OrgId, fromSeq: number) => Effect.Effect<ChainVerification, AuditUnavailable>
 }>()("api/platform/AuditLogClient") {
   static readonly layer = Layer.effect(
     AuditLogClient,
@@ -29,7 +29,10 @@ export class AuditLogClient extends Context.Service<AuditLogClient, {
         }),
         verify: Effect.fn("AuditLogClient.verify")(function*(orgId: OrgId, fromSeq: number) {
           const context = yield* trace
-          const wire = yield* Effect.promise(() => stub(orgId).verify(orgId, fromSeq, context))
+          const wire = yield* Effect.tryPromise({
+            try: () => stub(orgId).verify(orgId, fromSeq, context),
+            catch: (cause) => new AuditUnavailable({ message: `audit chain verification failed: ${String(cause)}` })
+          })
           return yield* Schema.decodeUnknownEffect(ChainVerificationWire)(wire).pipe(Effect.orDie)
         })
       })

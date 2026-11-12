@@ -31,6 +31,7 @@ import { upstreamToolsKey } from "../mcp/cache-keys"
 import { ProjectsRepo } from "../org/projects-repo"
 import { Ids } from "../platform/ids"
 import { KvCache } from "../platform/kv"
+import { logBindingFailure } from "../platform/binding-call"
 import { Secrets } from "../secrets/secrets"
 import { refuseBuiltin } from "../skills/builtin/builtin-skills"
 import { checkReferences } from "./references"
@@ -135,7 +136,7 @@ export class Resources extends Context.Service<Resources, {
         yield* withRepo(checkEnvNameUnique(next))
         yield* repo.update(next)
         yield* audit.by(principal, "resource.updated", { type: "resource", id }, { fields: Object.keys(input) })
-        if (next.config.kind === "mcp_server") yield* cache.remove(upstreamToolsKey(id))
+        if (next.config.kind === "mcp_server") yield* cache.remove(upstreamToolsKey(id)).pipe(logBindingFailure("tool list cache invalidation"))
         return next
       })
 
@@ -150,7 +151,7 @@ export class Resources extends Context.Service<Resources, {
         const resource = yield* load(principal, id)
         yield* repo.remove(principal.orgId, id, user.userId)
         yield* audit.by(principal, "resource.deleted", { type: "resource", id })
-        yield* cache.remove(upstreamToolsKey(id))
+        yield* cache.remove(upstreamToolsKey(id)).pipe(logBindingFailure("tool list cache invalidation"))
         const tokenSecretId = managedSecretOf(resource.config)
         if (tokenSecretId !== undefined && Option.isSome(yield* repo.find(principal.orgId, tokenSecretId))) {
           yield* repo.remove(principal.orgId, tokenSecretId, user.userId)

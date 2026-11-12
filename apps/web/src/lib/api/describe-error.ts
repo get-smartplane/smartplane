@@ -35,6 +35,9 @@ export const describeError = (error: ApiError): ErrorDescription => {
       return { title: denialTitle(error.reasons), description: error.reasons.map((reason) => describeDenyReason(reason)).join(" ") }
     case "UpstreamFailure":
       return { title: `${error.upstream} is unavailable`, description: error.message }
+    case "BindingFailure":
+    case "AuditUnavailable":
+      return { title: "Temporarily unavailable", description: "Part of Smartplane did not answer. Try again in a moment." }
     case "ModelTimedOut":
       return { title: "Took too long", description: "The model did not answer in time. Try again in a moment." }
     case "AuthorizationServerChanged":

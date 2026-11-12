@@ -52,9 +52,9 @@ const fakeClassifier = (answers: ClassifierAnswers) =>
   }))
 
 /** Delivery, machine tokens and their dependencies, real over the in-memory D1, with a scripted classifier. */
-export const deliveryServices = (events: Array<AuditEvent>, answers: ClassifierAnswers = classifierAnswers()) =>
+export const deliveryServices = (events: Array<AuditEvent>, answers: ClassifierAnswers = classifierAnswers(), limiter: Layer.Layer<RateLimiter> = RateLimiter.memory) =>
   Layer.mergeAll(SecretDelivery.layer, DeliverySettings.layer, MachineTokens.layer, MachineTokenAuthenticator.layer, TokenAuthenticator.layer, Offboarding.layer).pipe(
-    Layer.provideMerge(Layer.mergeAll(DeliveryGuards.layer, RateLimiter.memory, Principals.layer)),
+    Layer.provideMerge(Layer.mergeAll(DeliveryGuards.layer, limiter, Principals.layer)),
     Layer.provideMerge(Layer.mergeAll(MachineTokensRepo.layer, GuardsRepo.layer, UsersRepo.layer, OrgsRepo.layer, ConnectionsRepo.layer, fakeClassifier(answers))),
     Layer.provideMerge(resourceServices(events))
   )

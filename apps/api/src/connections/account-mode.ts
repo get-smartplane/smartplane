@@ -3,6 +3,7 @@ import { Context, DateTime, Effect, Layer } from "effect"
 import { AuditLog } from "../audit/audit-log"
 import { actorOf } from "../audit/actor"
 import { upstreamToolsKey, upstreamUserToolsKey } from "../mcp/cache-keys"
+import { logBindingFailure } from "../platform/binding-call"
 import { KvCache } from "../platform/kv"
 import { ResourcesRepo } from "../resources/resources-repo"
 import { ConnectionsRepo } from "./connections-repo"
@@ -50,10 +51,8 @@ export class AccountModes extends Context.Service<AccountModes, {
           if (retired !== null) {
             yield* audit.by(principal, "resource.deleted", { type: "resource", id: retired }, { reason: "mode_changed", integrationId: resource.id })
           }
-          yield* cache.remove(upstreamToolsKey(resource.id))
-          yield* Effect.forEach(doomed, (connection) => connection.userId === null ? Effect.void : cache.remove(upstreamUserToolsKey(resource.id, connection.userId)), {
-            discard: true
-          })
+          const stale = [upstreamToolsKey(resource.id), ...doomed.flatMap((connection) => connection.userId === null ? [] : [upstreamUserToolsKey(resource.id, connection.userId)])]
+          yield* Effect.forEach(stale, (key) => cache.remove(key).pipe(logBindingFailure("tool list cache invalidation")), { discard: true })
           yield* audit.by(principal, "resource.updated", { type: "resource", id: resource.id }, { fields: ["config"], accountMode: mode })
           return next
         })

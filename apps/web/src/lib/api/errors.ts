@@ -1,5 +1,7 @@
 import type {
+  AuditUnavailable,
   AuthorizationServerChanged,
+  BindingFailure,
   Conflict,
   Forbidden,
   InvalidInput,
@@ -23,6 +25,8 @@ export type ApiError =
   | InvalidInput
   | PolicyDenied
   | UpstreamFailure
+  | BindingFailure
+  | AuditUnavailable
   | ModelTimedOut
   | AuthorizationServerChanged
   | TransportFailure
