@@ -9,3 +9,13 @@ export const toolName = (resource: Resource, operation: string): string => `${sl
 /** How a resource-backed tool introduces itself to the agent. */
 export const describe = (resource: Resource, ...parts: ReadonlyArray<string>): string =>
   [`[${resource.name}]`, ...parts].map((part) => part.trim()).filter((part) => part.length > 0).join(" ")
+
+/** The `<resource-slug>` a tool name is namespaced under, or `null` for built-ins, which have no prefix. Slugs never contain `_`. */
+export const namespaceOf = (name: string): string | null => {
+  const at = name.indexOf(Separator)
+  return at === -1 ? null : name.slice(0, at)
+}
+
+/** Whether `resource`'s tools can be named in `namespace`; `undefined` means every namespace is wanted. */
+export const inNamespace = (namespace: string | null | undefined, resource: Resource): boolean =>
+  namespace === undefined || namespace === slugify(resource.name)

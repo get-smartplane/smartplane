@@ -1,5 +1,5 @@
 import { accountModeOf, type Actor, type McpServerConfig, type Principal, type Resource, UpstreamFailure } from "@pc/domain"
-import { Context, Effect, Layer, Option, Redacted, Schema } from "effect"
+import { Context, Duration, Effect, Layer, Option, Redacted, Schema } from "effect"
 import { ConnectionResolver } from "../connections/resolver"
 import { KvCache } from "../platform/kv"
 import { Secrets } from "../secrets/secrets"
@@ -8,6 +8,8 @@ import { McpTool, type ToolResult, type UpstreamTarget } from "./sdk"
 import { type UpstreamCallFailed, UpstreamClient, type UpstreamUnauthorized } from "./upstream-client"
 
 const ToolListTtlSeconds = 300
+/** Listing runs on the agent's path (tools/list, and a call into that server); past this the server counts as unavailable. */
+const ListTimeout = Duration.seconds(10)
 const CachedTools = Schema.Array(McpTool)
 
 /** Who is calling: per-user servers use the caller's own account, and every credential read is audited as them. */
@@ -85,7 +87,9 @@ export class Upstream extends Context.Service<Upstream, {
           const key = cacheKey(server, caller)
           const cached = yield* cache.get(key, CachedTools)
           if (Option.isSome(cached)) return cached.value
-          const tools = yield* withCredential(server, caller, (upstream) => client.listTools(upstream))
+          const tools = yield* withCredential(server, caller, (upstream) => client.listTools(upstream)).pipe(
+            Effect.timeoutOrElse({ duration: ListTimeout, orElse: () => Effect.fail(failure(server, "the server did not list its tools in time")) })
+          )
           // Several verify runs (or gateway sessions) can list the same server at once and write this key
           // together; KV refuses more than one write per key per second. A lost cache write costs a refetch only.
           yield* cache.set(key, CachedTools, tools, ToolListTtlSeconds).pipe(

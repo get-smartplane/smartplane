@@ -3,7 +3,7 @@ import { Effect } from "effect"
 import { type EffectiveAccess, toolDenials } from "../access/resolution"
 import { ConnectionResolver } from "../connections/resolver"
 import type { CallerScope, GatewayTool, ToolProvider } from "../mcp/provider"
-import { describe, toolName } from "../mcp/naming"
+import { describe, inNamespace, toolName } from "../mcp/naming"
 import { Upstream } from "../mcp/upstream"
 import { ResourcesRepo } from "../resources/resources-repo"
 
@@ -80,7 +80,10 @@ export const makeUpstreamMcpProvider = Effect.gen(function*() {
     source: "mcp",
     tools: (scope) =>
       Effect.flatMap(reachableServers(repo, scope.principal, scope.access), (servers) =>
-        Effect.map(Effect.forEach(servers, (server) => serverTools(scope, server), { concurrency: 8 }), (lists) => lists.flat()))
+        Effect.map(
+          Effect.forEach(servers.filter((server) => inNamespace(scope.namespace, server)), (server) => serverTools(scope, server), { concurrency: 8 }),
+          (lists) => lists.flat()
+        ))
   }
   return provider
 })

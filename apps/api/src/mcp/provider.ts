@@ -8,6 +8,11 @@ export interface CallerScope {
   readonly principal: Principal
   readonly actor: Actor
   readonly access: EffectiveAccess
+  /**
+   * Set when a single tool is being called: only tools named `<namespace>__…` are wanted (`null`: built-ins).
+   * Providers that do slow work per resource (listing upstream servers) skip resources outside it.
+   */
+  readonly namespace?: string | null
 }
 
 /** A call that passed argument validation and the grant check, ready for guards and then execution. */

@@ -41,11 +41,13 @@ describe("notReadOnly", () => {
     }).pipe(Effect.provide(IntegrationCatalog.layer)))
 })
 
+const notionCatalog = Effect.sync(() => new Map(listed.map((tool) => [`notion__${tool.name}`, gatewayTool(notion, tool)])))
+
 /** A gateway whose catalog holds Notion's tools; records what the pipeline ran. */
 const gateway = (ran: Array<string>, answer = { results: [{ id: "8c1d2e3f-4a5b-6c7d-8e9f-0a1b2c3d4e5f", title: "Todo", type: "database", url: "https://www.notion.so/8c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f" }] }) =>
   GatewayReads.layer.pipe(Layer.provide(Layer.mergeAll(
     IntegrationCatalog.layer,
-    Layer.succeed(ToolCatalog, { forPrincipal: () => Effect.succeed(new Map(listed.map((tool) => [`notion__${tool.name}`, gatewayTool(notion, tool)]))) }),
+    Layer.succeed(ToolCatalog, { forPrincipal: () => notionCatalog, forTool: () => notionCatalog }),
     Layer.succeed(ToolPipeline, { run: (_principal, tool) => Effect.sync(() => (ran.push(tool.definition.name), textResult(JSON.stringify(answer)))) })
   )))
 
