@@ -15,6 +15,7 @@ import { D1Client } from "@effect/sql-d1"
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect"
 import type { Verdict } from "../scan/verdict"
 import { conflictOnDuplicate, decodeFirst, decodeRows, encodeRow, JsonColumn } from "../../platform/sql"
+import { inChunks } from "../../platform/sql-chunks"
 
 const VersionRow = Schema.toCodecJson(Schema.Struct({
   ...SkillVersion.fields,
@@ -93,10 +94,9 @@ export class SkillVersionsRepo extends Context.Service<SkillVersionsRepo, {
           first(sql`${select} WHERE v.org_id = ${orgId} AND v.id = ${id}`)
         ),
         active: Effect.fn("SkillVersionsRepo.active")((orgId: OrgId, resourceIds: ReadonlyArray<ResourceId>) =>
-          resourceIds.length === 0
-            ? Effect.succeed([])
-            : rows(sql`SELECT v.*, 1 AS active FROM skill_active_versions a JOIN skill_versions v ON v.id = a.version_id
-                        WHERE a.org_id = ${orgId} AND ${sql.in("a.resource_id", resourceIds)}`)
+          inChunks(resourceIds, (chunk) =>
+            rows(sql`SELECT v.*, 1 AS active FROM skill_active_versions a JOIN skill_versions v ON v.id = a.version_id
+                      WHERE a.org_id = ${orgId} AND ${sql.in("a.resource_id", chunk)}`))
         ),
         activate: Effect.fn("SkillVersionsRepo.activate")(function*(version: SkillVersion, by: UserId) {
           const now = DateTime.formatIso(yield* DateTime.now)

@@ -4,6 +4,7 @@ import { D1Client } from "@effect/sql-d1"
 import { SqlClient } from "effect/sql"
 import type { SqlError } from "effect/sql/SqlError"
 import { decodeFirst, decodeRows, encodeRow, JsonColumn } from "../platform/sql"
+import { inChunks } from "../platform/sql-chunks"
 import type { ChainHead } from "./chain"
 
 const Row = Schema.Struct({
@@ -29,8 +30,6 @@ export interface DaySlice {
 }
 
 const iso = (value: DateTime.Utc) => DateTime.formatIso(value)
-/** D1 binds at most 100 parameters per statement. */
-const IdsPerQuery = 90
 const DefaultPageSize = 100
 
 /** D1 access for `audit_events`. Only the AuditLog Durable Object calls `insert`. */
@@ -75,13 +74,8 @@ export class AuditStore extends Context.Service<AuditStore, {
       const checkpoint = Effect.fn("AuditStore.checkpoint")((orgId: OrgId) => decodeFirst(HeadRow)(latestCheckpoint(orgId)))
 
       const existingIds = Effect.fn("AuditStore.existingIds")(function*(orgId: OrgId, ids: ReadonlyArray<string>) {
-        const found = new Set<string>()
-        for (let offset = 0; offset < ids.length; offset += IdsPerQuery) {
-          const chunk = ids.slice(offset, offset + IdsPerQuery)
-          const rows = yield* sql`SELECT id FROM audit_events WHERE ${sql.in("id", chunk)}`
-          for (const { id } of yield* decodeIds(rows)) found.add(id)
-        }
-        return found
+        const rows = yield* inChunks(ids, (chunk) => Effect.flatMap(sql`SELECT id FROM audit_events WHERE ${sql.in("id", chunk)}`, decodeIds))
+        return new Set(rows.map(({ id }) => id))
       })
 
       const insertAll = Effect.fn("AuditStore.insertAll")(function*(events: ReadonlyArray<ChainedAuditEvent>) {

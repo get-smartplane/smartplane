@@ -13,6 +13,7 @@ import {
 import { D1Client } from "@effect/sql-d1"
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect"
 import { grantInsertRow } from "../access/grants-repo"
+import { inChunks } from "../platform/sql-chunks"
 import { conflictOnDuplicate, decodeFirst, decodeRows, encodeRow, JsonColumn } from "../platform/sql"
 
 const ResourceRow = Schema.toCodecJson(Schema.Struct({ ...Resource.fields, config: JsonColumn(ResourceConfig) })).pipe(
@@ -60,7 +61,7 @@ export class ResourcesRepo extends Context.Service<ResourcesRepo, {
           decodeFirst(ResourceRow)(sql`${select} WHERE org_id = ${orgId} AND id = ${id} AND ${live}`)
         ),
         findMany: Effect.fn("ResourcesRepo.findMany")((orgId: OrgId, ids: ReadonlyArray<ResourceId>) =>
-          ids.length === 0 ? Effect.succeed([]) : rows(sql`${select} WHERE org_id = ${orgId} AND ${sql.in("id", ids)} AND ${live}`)
+          inChunks(ids, (chunk) => rows(sql`${select} WHERE org_id = ${orgId} AND ${sql.in("id", chunk)} AND ${live}`))
         ),
         ofKind: Effect.fn("ResourcesRepo.ofKind")((orgId: OrgId, kind: ResourceKind) =>
           rows(sql`${select} WHERE org_id = ${orgId} AND kind = ${kind} AND ${live}`)

@@ -13,6 +13,7 @@ import {
 import { D1Client } from "@effect/sql-d1"
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect"
 import { decodeFirst, decodeRows, encodeRow, JsonColumn } from "../platform/sql"
+import { chunksOf } from "../platform/sql-chunks"
 
 const ReviewRow = Schema.toCodecJson(Schema.Struct({ ...AccessReview.fields, scope: JsonColumn(AccessReviewScope) })).pipe(
   Schema.decodeTo(AccessReview)
@@ -76,8 +77,7 @@ export class AccessReviewsRepo extends Context.Service<AccessReviewsRepo, {
         const { itemCount: _items, decidedCount: _decided, ...fields } = yield* encodeReview(review)
         const row = { ...fields, machineTokens: yield* Effect.orDie(encodeMachineTokens(machineTokens)) }
         const rows = yield* Effect.forEach(reviewItems, encodeItem)
-        const chunks = Array.from({ length: Math.ceil(rows.length / ItemsPerInsert) }, (_, index) =>
-          rows.slice(index * ItemsPerInsert, (index + 1) * ItemsPerInsert))
+        const chunks = chunksOf(rows, ItemsPerInsert)
         yield* sql.batch([
           sql`INSERT INTO access_reviews ${sql.insert(row)}`,
           ...chunks.map((chunk) => sql`INSERT INTO access_review_items ${sql.insert(chunk)}`)

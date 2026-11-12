@@ -3,11 +3,9 @@ import { Context, Effect, Layer, Schema } from "effect"
 import { SqlClient } from "effect/sql"
 import type { SqlError } from "effect/sql/SqlError"
 import { decodeRows } from "../platform/sql"
+import { inChunks } from "../platform/sql-chunks"
 
 const LabelRow = Schema.Struct({ id: Schema.String, label: Schema.String, detail: Schema.NullOr(Schema.String), gone: Schema.Number })
-
-/** D1 allows 100 bound parameters per statement; one is the org id. */
-const IdsPerQuery = 90
 
 /** Display names straight from D1, always scoped to one org. Kinds without a sensible name are not listed. */
 export class LookupRepo extends Context.Service<LookupRepo, {
@@ -56,9 +54,8 @@ export class LookupRepo extends Context.Service<LookupRepo, {
         labels: Effect.fn("LookupRepo.labels")(function*(orgId: OrgId, kind: EntityKind, ids: ReadonlyArray<string>) {
           const query = queries[kind]
           if (query === undefined || ids.length === 0) return []
-          const chunks = Array.from({ length: Math.ceil(ids.length / IdsPerQuery) }, (_, i) => ids.slice(i * IdsPerQuery, (i + 1) * IdsPerQuery))
-          const rows = yield* Effect.forEach(chunks, (chunk) => decodeRows(LabelRow)(query(orgId, chunk)))
-          return rows.flat().map((row): LookupEntry => ({ kind, id: row.id, label: row.label, detail: row.detail, gone: row.gone !== 0 }))
+          const rows = yield* inChunks(ids, (chunk) => decodeRows(LabelRow)(query(orgId, chunk)))
+          return rows.map((row): LookupEntry => ({ kind, id: row.id, label: row.label, detail: row.detail, gone: row.gone !== 0 }))
         })
       })
     })
