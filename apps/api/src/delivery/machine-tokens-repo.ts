@@ -1,6 +1,7 @@
 import { MachineToken, type MachineTokenId, type OrgId, ResourceId, type UserId } from "@pc/domain"
 import { Context, DateTime, Effect, Layer, type Option, Schema } from "effect"
 import { SqlClient } from "effect/sql"
+import { bestEffort, lastUsedTimes } from "../platform/last-used"
 import { decodeFirst, decodeRows, encodeRow, JsonColumn } from "../platform/sql"
 
 const MachineTokenRow = Schema.toCodecJson(
@@ -58,7 +59,12 @@ export class MachineTokensRepo extends Context.Service<MachineTokensRepo, {
           return updated.length > 0
         }),
         touch: Effect.fn("MachineTokensRepo.touch")(function*(id: MachineTokenId, ip: string | null) {
-          yield* sql`UPDATE machine_tokens SET last_used_at = ${yield* now}, last_used_ip = ${ip} WHERE id = ${id}`.pipe(Effect.orDie)
+          const { now: usedAt, staleBefore } = yield* lastUsedTimes
+          // A new IP is written at once: where a machine token is used from matters to reviewers.
+          yield* sql`UPDATE machine_tokens SET last_used_at = ${usedAt}, last_used_ip = ${ip}
+                      WHERE id = ${id} AND (last_used_at IS NULL OR last_used_at < ${staleBefore} OR last_used_ip IS NOT ${ip})`.pipe(
+            bestEffort("machine token last-used update")
+          )
         })
       })
     })

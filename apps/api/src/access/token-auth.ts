@@ -59,7 +59,7 @@ export class TokenAuthenticator extends Context.Service<TokenAuthenticator, {
           if (token.revokedAt !== null) return yield* invalid
           if (!DateTime.isGreaterThan(token.expiresAt, yield* DateTime.now)) return yield* new Unauthorized({ reason: "expired" })
           const principal = yield* principalFor(found.value)
-          // Best effort; last-used feeds access reviews, not security decisions.
+          // Throttled and best effort (see TokensRepo.touch): last use feeds access reviews, not security decisions.
           yield* tokens.touch(token.id)
           yield* Effect.annotateCurrentSpan({ "org.id": token.orgId, "principal.kind": principal._tag, "token.kind": token.kind })
           return principal

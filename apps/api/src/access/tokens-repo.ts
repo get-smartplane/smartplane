@@ -10,6 +10,7 @@ import {
 } from "@pc/domain"
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect"
 import { SqlClient } from "effect/sql"
+import { bestEffort, lastUsedTimes } from "../platform/last-used"
 import { decodeFirst, decodeRows, encodeRow } from "../platform/sql"
 
 const TokenRow = Schema.toCodecJson(AccessToken)
@@ -83,8 +84,9 @@ export class TokensRepo extends Context.Service<TokensRepo, {
           }))))
         ),
         touch: Effect.fn("TokensRepo.touch")(function*(id: AccessTokenId) {
-          const now = DateTime.formatIso(yield* DateTime.now)
-          yield* sql`UPDATE access_tokens SET last_used_at = ${now} WHERE id = ${id}`.pipe(Effect.orDie)
+          const { now, staleBefore } = yield* lastUsedTimes
+          yield* sql`UPDATE access_tokens SET last_used_at = ${now}
+                      WHERE id = ${id} AND (last_used_at IS NULL OR last_used_at < ${staleBefore})`.pipe(bestEffort("token last-used update"))
         })
       })
     })
