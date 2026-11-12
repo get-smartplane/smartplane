@@ -1,5 +1,5 @@
 import { HttpApiEndpoint, HttpApiGroup } from "effect/http-api"
-import { Conflict, Forbidden, InvalidInput, NotFound, RateLimited } from "../errors"
+import { BindingFailure, Conflict, Forbidden, InvalidInput, NotFound, RateLimited } from "../errors"
 import { ResourceId } from "../ids"
 import { DeliveredSecrets, DeliverSecretsRequest, UpdateDelivery } from "../resources/delivery"
 import { Resource } from "../resources/resource"
@@ -14,7 +14,8 @@ export class SecretDeliveryApi extends HttpApiGroup.make("secretDelivery")
     HttpApiEndpoint.post("deliver", "/deliver", {
       payload: DeliverSecretsRequest,
       success: DeliveredSecrets,
-      error: [Forbidden, RateLimited, InvalidInput]
+      // BindingFailure: the rate limiter could not be reached; delivery is refused rather than unlimited.
+      error: [Forbidden, RateLimited, InvalidInput, BindingFailure]
     })
   )
   .middleware(DeliveryAuthentication)

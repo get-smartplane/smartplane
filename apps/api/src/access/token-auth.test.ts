@@ -40,7 +40,7 @@ describe("token authentication", () => {
       assert.deepStrictEqual(principal.teamIds.map(String), ["team_testteam1"])
       assert.deepStrictEqual(principal.permissions, ["resources:read"])
       const [row] = yield* selectRows("SELECT last_used_at FROM access_tokens WHERE id = ?", "tok_live0001")
-      assert.isNotNull(row?.last_used_at)
+      assert.isString(row?.lastUsedAt)
     }).pipe(Effect.provide(TestLayer)))
 
   it.effect("rejects unknown and malformed tokens", () =>
@@ -88,5 +88,25 @@ describe("token authentication", () => {
       const principal = yield* authenticate("pc_service")
       assert.strictEqual(principal._tag, "ServiceAccount")
       assert.deepStrictEqual(principal.teamIds, [])
+    }).pipe(Effect.provide(TestLayer)))
+
+  it.effect("writes last use at most once per 5 minutes, and a failing write does not fail the request", () =>
+    Effect.gen(function*() {
+      yield* setup
+      yield* seedToken("tok_live0001", "pc_live")
+      const lastUsed = Effect.map(selectRows("SELECT last_used_at FROM access_tokens WHERE id = ?", "tok_live0001"), ([row]) => row?.lastUsedAt)
+      yield* authenticate("pc_live")
+      const first = yield* lastUsed
+      yield* TestClock.adjust("4 minutes")
+      yield* authenticate("pc_live")
+      assert.strictEqual(yield* lastUsed, first)
+      yield* TestClock.adjust("2 minutes")
+      yield* authenticate("pc_live")
+      assert.notStrictEqual(yield* lastUsed, first)
+
+      yield* selectRows("CREATE TRIGGER d1_down BEFORE UPDATE ON access_tokens BEGIN SELECT RAISE(ABORT, 'D1 unavailable'); END")
+      yield* TestClock.adjust("10 minutes")
+      const principal = yield* authenticate("pc_live")
+      assert.strictEqual(principal._tag, "User")
     }).pipe(Effect.provide(TestLayer)))
 })

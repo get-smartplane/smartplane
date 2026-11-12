@@ -2,6 +2,8 @@ import { Grant, GrantConditions, type GrantFilter, type GrantId, GrantSubject, t
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect"
 import { SqlClient } from "effect/sql"
 import { decodeFirst, decodeRows, encodeRow, JsonColumn } from "../platform/sql"
+import { chunksOf } from "../platform/chunks"
+import { IdsPerQuery } from "../platform/sql-chunks"
 import { subjectKey, type SubjectKey } from "./subjects"
 
 const GrantRow = Schema.toCodecJson(
@@ -63,10 +65,12 @@ export class GrantsRepo extends Context.Service<GrantsRepo, {
           rows(sql`${select} WHERE org_id = ${orgId} AND subject_type = 'user'`)
         ),
         forSubjects: Effect.fn("GrantsRepo.forSubjects")((orgId: OrgId, subjects: ReadonlyArray<SubjectKey>) => {
-          const matches = subjects.map((subject) => sql`(subject_type = ${subject.type} AND subject_id = ${subject.id})`)
-          return subjects.length === 0
-            ? Effect.succeed([])
-            : rows(sql`${select} WHERE org_id = ${orgId} AND revoked_at IS NULL AND ${sql.or(matches)}`)
+          // Each subject binds two parameters, so groups stay under D1's 100-parameter limit; a grant has one subject, so groups never overlap.
+          const queries = chunksOf(subjects, IdsPerQuery / 2).map((group) => {
+            const matches = group.map((subject) => sql`(subject_type = ${subject.type} AND subject_id = ${subject.id})`)
+            return rows(sql`${select} WHERE org_id = ${orgId} AND revoked_at IS NULL AND ${sql.or(matches)}`)
+          })
+          return Effect.map(Effect.all(queries), (groups) => groups.flat())
         })
       })
     })

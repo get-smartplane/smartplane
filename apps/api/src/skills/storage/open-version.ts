@@ -6,9 +6,13 @@ import { SkillMd } from "../bundle/root"
 import type { ScanFile } from "../scan/scanner"
 import { SkillBlobs } from "./blobs"
 
-/** One manifest file's content. A missing blob means R2 and D1 disagree, which is a defect. */
+/**
+ * One manifest file's content. A missing blob means R2 and D1 disagree, which is a defect; an R2 failure is
+ * one too here, so a read fails its request (or its scan message, which the queue retries).
+ */
 export const readFile = (version: Pick<SkillVersion, "orgId">, file: SkillFile): Effect.Effect<Uint8Array, never, SkillBlobs> =>
   SkillBlobs.use((blobs) => blobs.get(version.orgId, file.sha256)).pipe(
+    Effect.orDie,
     Effect.flatMap(Option.match({
       onNone: () => Effect.die(new Error(`skill blob ${file.sha256} is missing`)),
       onSome: Effect.succeed

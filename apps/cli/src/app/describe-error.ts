@@ -1,4 +1,4 @@
-import type { Conflict, Forbidden, InvalidInput, ModelTimedOut, NotFound, PolicyDenied, Unauthorized, UnauthorizedReason, UpstreamFailure } from "@pc/domain"
+import type { AuditUnavailable, BindingFailure, Conflict, Forbidden, InvalidInput, ModelTimedOut, NotFound, PolicyDenied, Unauthorized, UnauthorizedReason, UpstreamFailure } from "@pc/domain"
 import type { PlatformError, Schema, Terminal } from "effect"
 import type { CliError } from "effect/cli"
 import type { HttpClientError } from "effect/http"
@@ -17,6 +17,8 @@ export type AppError =
   | InvalidInput
   | PolicyDenied
   | UpstreamFailure
+  | BindingFailure
+  | AuditUnavailable
   | ModelTimedOut
   | HttpClientError.HttpClientError
   | Schema.SchemaError
@@ -58,6 +60,9 @@ export const toFailure = (error: AppError): CliFailure => {
       return failure(`Denied by policy. ${error.reasons.map((reason) => describeDenyReason(reason)).join(" ")}`)
     case "UpstreamFailure":
       return failure(`${error.upstream} is unavailable: ${error.message}`)
+    case "BindingFailure":
+    case "AuditUnavailable":
+      return failure("Smartplane is temporarily unavailable.", "Try again in a moment.")
     case "ModelTimedOut":
       return failure(`The ${error.purpose} model took longer than ${Math.round(error.timeoutMs / 1000)} s.`, "Try again in a moment.")
     case "HttpClientError":

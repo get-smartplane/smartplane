@@ -1,4 +1,4 @@
-import { Forbidden, InvalidInput, MachineTokenPrefix, PolicyDenied, RateLimited, Unauthorized } from "@pc/domain"
+import { BindingFailure, Forbidden, InvalidInput, MachineTokenPrefix, PolicyDenied, RateLimited, Unauthorized } from "@pc/domain"
 import { Effect, Option, Redacted, Schema } from "effect"
 import { HttpClient, HttpClientRequest, type HttpClientResponse } from "effect/http"
 import type { Session } from "../api/session"
@@ -17,7 +17,7 @@ export const retryAfterSeconds = (header: string | undefined, now = Date.now()):
   return Number.isFinite(seconds) ? Math.min(Math.max(Math.ceil(seconds), 0), maxRetryAfterSeconds) : 1
 }
 
-const ApiError = Schema.Union([Unauthorized, Forbidden, InvalidInput, PolicyDenied, RateLimited])
+const ApiError = Schema.Union([Unauthorized, Forbidden, InvalidInput, PolicyDenied, RateLimited, BindingFailure])
 const decodeApiError = Schema.decodeUnknownOption(Schema.toCodecJson(ApiError))
 const decodeResponse = Schema.decodeUnknownEffect(Schema.toCodecJson(DeliveredSecrets))
 const encodeRequest = Schema.encodeEffect(Schema.toCodecJson(DeliverSecretsRequest))

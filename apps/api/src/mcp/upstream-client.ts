@@ -7,7 +7,7 @@ export class UpstreamUnauthorized extends Schema.TaggedError<UpstreamUnauthorize
 /** Any other upstream failure, with a message safe to show (it never contains the credential). */
 export class UpstreamCallFailed extends Schema.TaggedError<UpstreamCallFailed>()("UpstreamCallFailed", { message: Schema.String }) {}
 
-const attempt = <A>(run: () => Promise<A>) =>
+const attempt = <A>(run: (signal: AbortSignal) => Promise<A>) =>
   Effect.tryPromise({
     try: run,
     catch: (cause) =>
@@ -20,7 +20,7 @@ export class UpstreamClient extends Context.Service<UpstreamClient, {
   readonly callTool: (target: UpstreamTarget, tool: string, args: Readonly<Record<string, unknown>>) => Effect.Effect<ToolResult, UpstreamUnauthorized | UpstreamCallFailed>
 }>()("api/mcp/UpstreamClient") {
   static readonly layer = Layer.succeed(UpstreamClient, {
-    listTools: (target) => attempt(() => listUpstreamTools(target)),
+    listTools: (target) => attempt((signal) => listUpstreamTools(target, signal)),
     callTool: (target, tool, args) => attempt(() => callUpstreamTool(target, tool, args))
   })
 }

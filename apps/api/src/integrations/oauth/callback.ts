@@ -6,6 +6,7 @@ import { ConnectionsRepo } from "../../connections/connections-repo"
 import { idTokenIdentity } from "../../connections/oauth/identity"
 import { AppConfig } from "../../platform/config"
 import { Ids } from "../../platform/ids"
+import { warnOnFailure } from "../../platform/warn-on-failure"
 import { ResourcesRepo } from "../../resources/resources-repo"
 import { Secrets } from "../../secrets/secrets"
 import { IntegrationCatalog } from "../catalog"
@@ -59,7 +60,10 @@ export class OAuthCallback extends Context.Service<OAuthCallback, {
         if (query.error !== undefined || query.code === undefined) return yield* fail("denied")
 
         const resource = yield* repo.find(orgId, resourceId)
-        const app = yield* Effect.option(Effect.flatMap(Effect.fromOption(resource), (found) => Effect.provideService(oauthAppOf(found), IntegrationCatalog, catalog)))
+        const app = yield* Effect.flatMap(Effect.fromOption(resource), (found) => Effect.provideService(oauthAppOf(found), IntegrationCatalog, catalog)).pipe(
+          warnOnFailure("integration OAuth app lookup failed"),
+          Effect.option
+        )
         if (Option.isNone(app) || app.value.connection.clientId !== clientId) return yield* fail("integration_changed")
 
         const actor = actorOf(principal.value)
@@ -68,6 +72,7 @@ export class OAuthCallback extends Context.Service<OAuthCallback, {
           Effect.provideService(Secrets, secrets),
           Effect.flatMap((client) => endpoint.request(app.value.tokenUrl, client, grant)),
           Effect.flatMap((response) => Effect.flatMap(Clock.currentTimeMillis, (now) => tokenSetFrom(response, now))),
+          warnOnFailure("integration code exchange failed"),
           Effect.option
         )
         if (Option.isNone(exchanged)) return yield* fail("exchange_failed")

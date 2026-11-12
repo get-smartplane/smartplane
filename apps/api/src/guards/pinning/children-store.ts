@@ -34,8 +34,10 @@ export class PinChildren extends Context.Service<PinChildren, {
     PinChildren,
     Effect.gen(function*() {
       const kv = yield* KvCache
+      // Not a cache: guards judge calls by these lists, so a KV failure must not read as "no children" (that would
+      // let a call on a pinned item pass as unpinned). It stays a defect and the call fails instead.
       const read = (orgId: OrgId, pinId: string) =>
-        Effect.map(kv.get(key(orgId, pinId), ChildIds), (found) => Option.match(found, { onNone: (): ReadonlyArray<string> => [], onSome: (value) => value.ids }))
+        Effect.map(Effect.orDie(kv.get(key(orgId, pinId), ChildIds)), (found) => Option.match(found, { onNone: (): ReadonlyArray<string> => [], onSome: (value) => value.ids }))
 
       return PinChildren.of({
         get: Effect.fn("PinChildren.get")(function*(orgId: OrgId, pinIds: ReadonlyArray<string>) {
@@ -45,9 +47,9 @@ export class PinChildren extends Context.Service<PinChildren, {
         add: Effect.fn("PinChildren.add")(function*(orgId: OrgId, pinId: string, ids: ReadonlyArray<string>) {
           const merged = mergeChildren(yield* read(orgId, pinId), ids)
           yield* Effect.annotateCurrentSpan({ "pin.children_added": merged === undefined ? 0 : ids.length })
-          if (merged !== undefined) yield* kv.set(key(orgId, pinId), ChildIds, { ids: merged }, ChildTtlSeconds)
+          if (merged !== undefined) yield* Effect.orDie(kv.set(key(orgId, pinId), ChildIds, { ids: merged }, ChildTtlSeconds))
         }),
-        clear: Effect.fn("PinChildren.clear")((orgId: OrgId, pinId: string) => kv.remove(key(orgId, pinId)))
+        clear: Effect.fn("PinChildren.clear")((orgId: OrgId, pinId: string) => Effect.orDie(kv.remove(key(orgId, pinId))))
       })
     })
   )

@@ -104,7 +104,8 @@ export class SkillVersions extends Context.Service<SkillVersions, {
           scanStatus: version.scanStatus,
           ...(version.override === null ? {} : { clearedOverride: { by: version.override.by, reason: version.override.reason } })
         })
-        yield* queue.send({ orgId: principal.orgId, versionId: version.id })
+        // Unlike an upload, a rescan exists only to queue the scan: if that fails, the request does too.
+        yield* Effect.orDie(queue.send({ orgId: principal.orgId, versionId: version.id }))
         const pending: SkillVersion = { ...version, scanStatus: "pending", override: null }
         return pending
       })

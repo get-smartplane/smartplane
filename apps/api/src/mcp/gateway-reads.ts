@@ -41,7 +41,7 @@ export class GatewayReads extends Context.Service<GatewayReads, {
       const integrations = yield* IntegrationCatalog
 
       const run = Effect.fn("GatewayReads.run")(function*(principal: Principal, name: string, args: Readonly<Record<string, unknown>>) {
-        const tool = (yield* catalog.forPrincipal(principal)).get(name)
+        const tool = (yield* catalog.forTool(principal, name)).get(name)
         if (tool === undefined) return yield* new ReadOnlyRefused({ tool: name, reason: "not available to you: no grant, or the account is not connected" })
         const refused = notReadOnly(tool, integrations)
         yield* Effect.annotateCurrentSpan({ "mcp.tool": name, "lookup.refused": refused ?? "" })

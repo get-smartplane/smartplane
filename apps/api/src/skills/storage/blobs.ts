@@ -1,5 +1,6 @@
-import type { OrgId } from "@pc/domain"
+import type { BindingFailure, OrgId } from "@pc/domain"
 import { Context, Effect, Layer, Option } from "effect"
+import { bindingCall } from "../../platform/binding-call"
 import { WorkerBindings } from "../../platform/bindings"
 
 const keyOf = (orgId: OrgId, sha256: string) => `skills/${orgId}/${sha256}`
@@ -11,9 +12,9 @@ const keyOf = (orgId: OrgId, sha256: string) => `skills/${orgId}/${sha256}`
  */
 export class SkillBlobs extends Context.Service<SkillBlobs, {
   /** True when this call created the object, false when it was already there. */
-  readonly put: (orgId: OrgId, sha256: string, bytes: Uint8Array) => Effect.Effect<boolean>
-  readonly remove: (orgId: OrgId, sha256: string) => Effect.Effect<void>
-  readonly get: (orgId: OrgId, sha256: string) => Effect.Effect<Option.Option<Uint8Array>>
+  readonly put: (orgId: OrgId, sha256: string, bytes: Uint8Array) => Effect.Effect<boolean, BindingFailure>
+  readonly remove: (orgId: OrgId, sha256: string) => Effect.Effect<void, BindingFailure>
+  readonly get: (orgId: OrgId, sha256: string) => Effect.Effect<Option.Option<Uint8Array>, BindingFailure>
 }>()("api/skills/SkillBlobs") {
   static readonly layer = Layer.effect(
     SkillBlobs,
@@ -22,17 +23,17 @@ export class SkillBlobs extends Context.Service<SkillBlobs, {
       return SkillBlobs.of({
         put: Effect.fn("SkillBlobs.put")(function*(orgId: OrgId, sha256: string, bytes: Uint8Array) {
           const key = keyOf(orgId, sha256)
-          if ((yield* Effect.promise(() => bucket.head(key))) !== null) return false
-          yield* Effect.promise(() => bucket.put(key, new Uint8Array(bytes), { sha256 }))
+          if ((yield* bindingCall("SKILLS", "head", () => bucket.head(key))) !== null) return false
+          yield* bindingCall("SKILLS", "put", () => bucket.put(key, new Uint8Array(bytes), { sha256 }))
           return true
         }),
         remove: Effect.fn("SkillBlobs.remove")(function*(orgId: OrgId, sha256: string) {
-          yield* Effect.promise(() => bucket.delete(keyOf(orgId, sha256)))
+          yield* bindingCall("SKILLS", "delete", () => bucket.delete(keyOf(orgId, sha256)))
         }),
         get: Effect.fn("SkillBlobs.get")(function*(orgId: OrgId, sha256: string) {
-          const object = yield* Effect.promise(() => bucket.get(keyOf(orgId, sha256)))
+          const object = yield* bindingCall("SKILLS", "get", () => bucket.get(keyOf(orgId, sha256)))
           if (object === null) return Option.none()
-          return Option.some(new Uint8Array(yield* Effect.promise(() => object.arrayBuffer())))
+          return Option.some(new Uint8Array(yield* bindingCall("SKILLS", "read", () => object.arrayBuffer())))
         })
       })
     })

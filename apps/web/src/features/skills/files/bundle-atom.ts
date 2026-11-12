@@ -2,6 +2,7 @@ import type { ResourceId } from "@pc/domain"
 import { Effect } from "effect"
 import { Atom } from "effect/reactivity"
 import { apiQuery } from "@/lib/api/atoms"
+import { TransportFailure } from "@/lib/api/errors"
 import { gunzip, readTar } from "./read-bundle"
 
 /**
@@ -11,7 +12,9 @@ import { gunzip, readTar } from "./read-bundle"
 export const bundleAtom = Atom.family((id: ResourceId) =>
   apiQuery(["skills"], (api) =>
     api.skills.bundle({ params: { id } }).pipe(
-      Effect.flatMap((archive) => Effect.promise(() => gunzip(archive))),
+      Effect.flatMap((archive) =>
+        Effect.tryPromise({ try: () => gunzip(archive), catch: () => new TransportFailure({ message: "The skill archive could not be unpacked." }) })
+      ),
       Effect.map(readTar)
     )
   )

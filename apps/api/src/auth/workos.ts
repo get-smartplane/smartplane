@@ -2,6 +2,7 @@ import { Email, Unauthorized, UpstreamFailure } from "@pc/domain"
 import { WorkOS as WorkOSClient } from "@workos-inc/node"
 import { Context, Effect, Layer, Redacted, Schema } from "effect"
 import { AppConfig } from "../platform/config"
+import { authenticateSession } from "./workos-session"
 
 /** The parts of a WorkOS user we mirror, decoded rather than trusted. */
 export const WorkosUser = Schema.Struct({
@@ -38,7 +39,8 @@ const decodeUser = (user: unknown) =>
 export class WorkOS extends Context.Service<WorkOS, {
   readonly authorizationUrl: (options: { readonly signUp: boolean; readonly organizationId?: string | undefined; readonly state: string }) => string
   readonly exchangeCode: (code: string) => Effect.Effect<CodeExchange, UpstreamFailure | Unauthorized>
-  readonly authenticate: (sealed: Redacted.Redacted<string>) => Effect.Effect<WorkosSession, Unauthorized>
+  /** `Unauthorized` only when WorkOS rejects the session; an outage is `UpstreamFailure`, so nobody is logged out by it. */
+  readonly authenticate: (sealed: Redacted.Redacted<string>) => Effect.Effect<WorkosSession, Unauthorized | UpstreamFailure>
   /** Re-seals the session scoped to `organizationId` (used after creating an org). */
   readonly switchOrganization: (sealed: Redacted.Redacted<string>, organizationId: string) => Effect.Effect<Redacted.Redacted<string>, UpstreamFailure>
   readonly logoutUrl: (sealed: Redacted.Redacted<string>) => Effect.Effect<string>
@@ -61,18 +63,8 @@ export class WorkOS extends Context.Service<WorkOS, {
 
       const authenticate = Effect.fn("WorkOS.authenticate")(function*(sealed: Redacted.Redacted<string>) {
         const session = load(sealed)
-        const current = yield* call("authenticate", () => session.authenticate()).pipe(Effect.mapError(() => invalid))
-        if (current.authenticated) {
-          return { user: yield* Effect.mapError(decodeUser(current.user), () => invalid), organizationId: current.organizationId, refreshed: undefined }
-        }
-        // An expired access token is refreshed transparently; anything else means signing in again.
-        const refreshed = yield* call("refresh", () => session.refresh({ cookiePassword })).pipe(Effect.mapError(() => invalid))
-        if (!refreshed.authenticated || refreshed.sealedSession === undefined) return yield* new Unauthorized({ reason: "expired" })
-        return {
-          user: yield* Effect.mapError(decodeUser(refreshed.user), () => invalid),
-          organizationId: refreshed.organizationId,
-          refreshed: Redacted.make(refreshed.sealedSession)
-        }
+        const outcome = yield* authenticateSession({ authenticate: () => session.authenticate(), refresh: () => session.refresh({ cookiePassword }) })
+        return { user: yield* Effect.mapError(decodeUser(outcome.user), () => invalid), organizationId: outcome.organizationId, refreshed: outcome.refreshed }
       })
 
       return WorkOS.of({

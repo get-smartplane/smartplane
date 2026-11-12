@@ -2,6 +2,7 @@ import type { DenyReason, Principal } from "@pc/domain"
 import { Context, Effect, Layer } from "effect"
 import { AuditLog } from "../audit/audit-log"
 import { type Catalog, ToolCatalog } from "./catalog"
+import { namespaceOf } from "./naming"
 import { ToolPipeline } from "./pipeline"
 import { type McpTool, textResult, type ToolResult } from "./sdk"
 import { serverOf } from "./search/index-tool"
@@ -42,16 +43,23 @@ export class McpGateway extends Context.Service<McpGateway, {
         return listed
       })
 
-      const unknown = Effect.fn("McpGateway.unknownTool")(function*(principal: Principal, tools: Catalog, name: string, via: string | undefined) {
+      /**
+       * Suggestions come from the called namespace when it has tools (e.g. its `unavailable` stand-in), else
+       * from the full catalog: the slow path, taken only for a name that matches nothing.
+       */
+      const unknown = Effect.fn("McpGateway.unknownTool")(function*(principal: Principal, nearby: Catalog, name: string, via: string | undefined) {
         const reasons: ReadonlyArray<DenyReason> = [{ _tag: "UnknownTool", tool: name }]
         yield* audit.by(principal, "policy.denied", null, { tool: name, reasons, ...(via === undefined ? {} : { via }) })
-        return textResult(unknownToolText(name, suggestNames([...tools.values()], name)), true)
+        const candidates = nearby.size > 0 && namespaceOf(name) !== null ? nearby : yield* catalog.forPrincipal(principal)
+        return textResult(unknownToolText(name, suggestNames([...candidates.values()], name)), true)
       })
 
-      const dispatch = (principal: Principal, tools: Catalog, name: string, args: Readonly<Record<string, unknown>>, via?: string) => {
+      /** Resolves only the provider and server `name` points at, so one slow upstream never delays other calls. */
+      const dispatch = Effect.fn("McpGateway.dispatch")(function*(principal: Principal, name: string, args: Readonly<Record<string, unknown>>, via?: string) {
+        const tools = yield* catalog.forTool(principal, name)
         const tool = tools.get(name)
-        return tool === undefined ? unknown(principal, tools, name, via) : pipeline.run(principal, tool, args, via)
-      }
+        return yield* (tool === undefined ? unknown(principal, tools, name, via) : pipeline.run(principal, tool, args, via))
+      })
 
       const search = Effect.fn("McpGateway.searchTools")(function*(principal: Principal, tools: Catalog, args: Readonly<Record<string, unknown>>) {
         const decoded = yield* Effect.result(decodeSearchArgs(args))
@@ -70,21 +78,20 @@ export class McpGateway extends Context.Service<McpGateway, {
       })
 
       /** Unwraps to the real tool, so the pipeline (grants, guards, approvals) and the audit see that tool. */
-      const callThrough = Effect.fn("McpGateway.callThrough")(function*(principal: Principal, tools: Catalog, args: Readonly<Record<string, unknown>>) {
+      const callThrough = Effect.fn("McpGateway.callThrough")(function*(principal: Principal, args: Readonly<Record<string, unknown>>) {
         const decoded = yield* Effect.result(decodeCallArgs(args))
         if (decoded._tag === "Failure") return textResult(`Invalid arguments: ${decoded.failure.message}`, true)
         const { name, arguments: inner = {} } = decoded.success
         yield* Effect.annotateCurrentSpan({ "mcp.tool": name, "mcp.via": CallToolName })
         if (isMetaTool(name)) return textResult(`Call ${name} directly, not through ${CallToolName}.`, true)
-        return yield* dispatch(principal, tools, name, inner, CallToolName)
+        return yield* dispatch(principal, name, inner, CallToolName)
       })
 
       const callTool = Effect.fn("McpGateway.callTool")(function*(principal: Principal, name: string, args: Readonly<Record<string, unknown>>) {
         yield* Effect.annotateCurrentSpan({ "mcp.tool": name, "org.id": principal.orgId, "principal.kind": principal._tag })
-        const tools = yield* catalog.forPrincipal(principal)
-        if (name === SearchToolName) return yield* search(principal, tools, args)
-        if (name === CallToolName) return yield* callThrough(principal, tools, args)
-        return yield* dispatch(principal, tools, name, args)
+        if (name === SearchToolName) return yield* search(principal, yield* catalog.forPrincipal(principal), args)
+        if (name === CallToolName) return yield* callThrough(principal, args)
+        return yield* dispatch(principal, name, args)
       })
 
       return McpGateway.of({ listTools, callTool })

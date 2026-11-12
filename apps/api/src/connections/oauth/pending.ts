@@ -2,6 +2,7 @@ import { OAuthReturnTo, OrgId, ResourceId, UserId } from "@pc/domain"
 import { Context, Effect, Layer, Option, Redacted, Schema } from "effect"
 import { StateTtlSeconds } from "../../integrations/oauth/state-store"
 import { SingleUseStore, singleUseStates } from "../../platform/single-use-states"
+import { warnOnFailure } from "../../platform/warn-on-failure"
 import { Envelope, open, seal } from "../../secrets/envelope"
 import { KeyRing } from "../../secrets/key-ring"
 import { type ConnectionClient, ConnectionClientJson } from "../credential"
@@ -54,6 +55,7 @@ export class PendingConnections extends Context.Service<PendingConnections, {
           const kek = Option.getOrElse(keys.find(row.value.client.kekId), () => keys.current)
           const client = yield* open(kek, row.value.client).pipe(
             Effect.flatMap((plaintext) => decodeClient(Redacted.value(plaintext))),
+            warnOnFailure("pending connection client could not be opened"),
             Effect.option
           )
           return Option.map(client, (opened): PendingConnection => ({ ...row.value, client: opened }))

@@ -1,6 +1,7 @@
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api"
 import { DeliverySummary } from "../audit/delivery-summary"
+import { AuditUnavailable } from "../audit/errors"
 import { AuditExportQuery, AuditPage, AuditQuery, AuditVerifyQuery, ChainVerification } from "../audit/query"
 import { Forbidden, InvalidInput } from "../errors"
 import { Authentication } from "./security"
@@ -14,7 +15,7 @@ export class AuditApi extends HttpApiGroup.make("audit")
     HttpApiEndpoint.get("list", "/", { query: AuditQuery, success: AuditPage, error: Forbidden }),
     /** Per-resource `secret.delivered` counts and the latest recipient, in one call for the Secrets page. */
     HttpApiEndpoint.get("deliveries", "/deliveries", { success: Schema.Array(DeliverySummary), error: Forbidden }),
-    HttpApiEndpoint.get("verify", "/verify", { query: AuditVerifyQuery, success: ChainVerification, error: Forbidden }),
+    HttpApiEndpoint.get("verify", "/verify", { query: AuditVerifyQuery, success: ChainVerification, error: [Forbidden, AuditUnavailable] }),
     HttpApiEndpoint.get("export", "/export", {
       query: AuditExportQuery,
       success: AuditExport,

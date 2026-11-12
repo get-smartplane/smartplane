@@ -1,5 +1,6 @@
 import {
   actionImplies,
+  type BindingFailure,
   type DeliverSecretsRequest,
   type DeliveredSecrets,
   type DeliveredValue,
@@ -21,7 +22,7 @@ import { DeliveryGuards } from "./delivery-guards"
 import { type Entitlement, inProjectScope, listed, planDelivery } from "./delivery-plan"
 import { DeliveryRateRules, RateLimiter } from "./rate-limiter"
 
-type Failure = Forbidden | RateLimited
+type Failure = Forbidden | RateLimited | BindingFailure
 
 const orgOf = (caller: DeliveryCaller): OrgId => (caller._tag === "Machine" ? caller.token.orgId : caller.principal.orgId)
 

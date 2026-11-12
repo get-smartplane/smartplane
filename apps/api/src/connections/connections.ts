@@ -27,6 +27,7 @@ import { upstreamToolsKey, upstreamUserToolsKey } from "../mcp/cache-keys"
 import { AppConfig } from "../platform/config"
 import { Ids } from "../platform/ids"
 import { KvCache } from "../platform/kv"
+import { logBindingFailure } from "../platform/binding-call"
 import { ResourceVisibility } from "../resources/resource-visibility"
 import { ResourcesRepo } from "../resources/resources-repo"
 import { AccountModes } from "./account-mode"
@@ -162,7 +163,7 @@ export class Connections extends Context.Service<Connections, {
           refreshedAt: null
         }
         yield* repo.put(connection, yield* vault.seal({ type: "secret", value }))
-        yield* cache.remove(upstreamUserToolsKey(id, user.userId))
+        yield* cache.remove(upstreamUserToolsKey(id, user.userId)).pipe(logBindingFailure("tool list cache invalidation"))
         yield* audit.by(principal, "connection.connected", { type: "resource", id }, { connectionId: connection.id, mode: "per_user", method: "secret" })
         return connection
       })
@@ -175,7 +176,7 @@ export class Connections extends Context.Service<Connections, {
         if (!perUser && resource.config.kind === "integration" && resource.config.connection.type === "oauth2") yield* integrationOAuth.disconnect(principal, id)
         const removed = yield* repo.remove(principal.orgId, id, perUser ? user.userId : null)
         if (Option.isSome(removed)) yield* audited(principal, removed.value, "disconnected")
-        yield* cache.remove(perUser ? upstreamUserToolsKey(id, user.userId) : upstreamToolsKey(id))
+        yield* cache.remove(perUser ? upstreamUserToolsKey(id, user.userId) : upstreamToolsKey(id)).pipe(logBindingFailure("tool list cache invalidation"))
         return yield* forResource(principal, id)
       })
 

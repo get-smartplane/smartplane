@@ -2,6 +2,7 @@ import type { Principal } from "@pc/domain"
 import { Context, Effect, Layer } from "effect"
 import { AccessPolicy } from "../access/access-policy"
 import { actorOf } from "../audit/actor"
+import { namespaceOf } from "./naming"
 import { isMetaTool } from "./search/meta-tools"
 import { type CallerScope, type GatewayTool, ToolProviders } from "./provider"
 
@@ -14,6 +15,11 @@ export type Catalog = ReadonlyMap<string, GatewayTool>
  */
 export class ToolCatalog extends Context.Service<ToolCatalog, {
   readonly forPrincipal: (principal: Principal) => Effect.Effect<Catalog>
+  /**
+   * Only the tools in the namespace `name` points at (`<slug>__…`, or the built-ins), so one call never waits
+   * on listing unrelated upstream servers. The tool `name` resolves to is the same one `forPrincipal` holds.
+   */
+  readonly forTool: (principal: Principal, name: string) => Effect.Effect<Catalog>
 }>()("api/mcp/ToolCatalog") {
   static readonly layer = Layer.effect(
     ToolCatalog,
@@ -21,8 +27,8 @@ export class ToolCatalog extends Context.Service<ToolCatalog, {
       const providers = yield* ToolProviders
       const policy = yield* AccessPolicy
 
-      const forPrincipal = Effect.fn("ToolCatalog.forPrincipal")(function*(principal: Principal) {
-        const scope: CallerScope = { principal, actor: actorOf(principal), access: yield* policy.resolve(principal) }
+      const build = Effect.fnUntraced(function*(principal: Principal, namespace: string | null | undefined) {
+        const scope: CallerScope = { principal, actor: actorOf(principal), access: yield* policy.resolve(principal), namespace }
         const listed = yield* Effect.forEach(providers, (provider) =>
           provider.tools(scope).pipe(
             Effect.withSpan("ToolProvider.tools", { attributes: { "mcp.provider": provider.source } }),
@@ -32,6 +38,7 @@ export class ToolCatalog extends Context.Service<ToolCatalog, {
           ), { concurrency: "unbounded" })
         const catalog = new Map<string, GatewayTool>()
         for (const tool of listed.flat()) {
+          if (namespace !== undefined && namespaceOf(tool.definition.name) !== namespace) continue
           // The meta-tools' names are reserved, so `smartplane__call_tool` can never mean an upstream tool.
           if (isMetaTool(tool.definition.name)) {
             yield* Effect.logWarning("reserved gateway tool name dropped", { tool: tool.definition.name })
@@ -47,7 +54,14 @@ export class ToolCatalog extends Context.Service<ToolCatalog, {
         return catalog satisfies Catalog
       })
 
-      return ToolCatalog.of({ forPrincipal })
+      return ToolCatalog.of({
+        forPrincipal: Effect.fn("ToolCatalog.forPrincipal")((principal: Principal) => build(principal, undefined)),
+        forTool: Effect.fn("ToolCatalog.forTool")(function*(principal: Principal, name: string) {
+          const namespace = namespaceOf(name)
+          yield* Effect.annotateCurrentSpan({ "mcp.namespace": namespace ?? "builtin" })
+          return yield* build(principal, namespace)
+        })
+      })
     })
   )
 }

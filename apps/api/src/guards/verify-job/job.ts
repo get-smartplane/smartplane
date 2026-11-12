@@ -73,8 +73,9 @@ export class VerifyJobs extends Context.Service<VerifyJobs, {
       const queue = (yield* WorkerBindings).GUARD_SELF_TESTS
       const kv = yield* KvCache
       return VerifyJobs.of({
-        save: Effect.fn("VerifyJobs.save")((job: VerifyJob) => kv.set(jobKey(job.runId), VerifyJob, job, JobTtlSeconds)),
-        load: (runId: string) => kv.get(jobKey(runId), VerifyJob),
+        // The run's state, not a cache: a failure fails the request starting the run, or the queue message (which is retried).
+        save: Effect.fn("VerifyJobs.save")((job: VerifyJob) => Effect.orDie(kv.set(jobKey(job.runId), VerifyJob, job, JobTtlSeconds))),
+        load: (runId: string) => Effect.orDie(kv.get(jobKey(runId), VerifyJob)),
         enqueue: Effect.fn("VerifyJobs.enqueue")(function*(message: VerifyMessage, delaySeconds?: number) {
           const body = yield* Effect.orDie(encode(message))
           yield* Effect.tryPromise({

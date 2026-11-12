@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs"
 import { DatabaseSync } from "node:sqlite"
 
+const MaxBoundParameters = 100
 const migrationsDir = new URL("../../migrations/", import.meta.url)
 
 const meta = {
@@ -21,6 +22,8 @@ class Statement {
   ) {}
 
   bind(...values: Array<unknown>) {
+    // Production D1 rejects statements with more than 100 bound parameters; SQLite would accept them.
+    if (values.length > MaxBoundParameters) throw new Error(`too many SQL variables: ${values.length}`)
     return new Statement(this.db, this.query, values)
   }
 

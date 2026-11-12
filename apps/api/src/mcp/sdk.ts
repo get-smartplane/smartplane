@@ -84,13 +84,14 @@ export class UpstreamRedirectError extends Error {
 
 const isRedirect = (status: number): boolean => status >= 300 && status < 400
 
-const withClient = async <A>(target: UpstreamTarget, use: (client: Client) => Promise<A>): Promise<A> => {
+const withClient = async <A>(target: UpstreamTarget, use: (client: Client) => Promise<A>, signal?: AbortSignal): Promise<A> => {
   let unauthorized = false
   let redirected: number | undefined
   // Without an auth provider the SDK reports a 401 as a plain error; the status is read off the response instead.
   // Redirects are refused, not followed: following one would carry the credential header to another URL.
   const observed: typeof fetch = async (input, init) => {
-    const response = await fetch(input, { ...init, redirect: "manual" })
+    const signals = [init?.signal, signal].filter((each): each is AbortSignal => each instanceof AbortSignal)
+    const response = await fetch(input, { ...init, redirect: "manual", ...(signals.length === 0 ? {} : { signal: AbortSignal.any(signals) }) })
     if (response.status === 401) unauthorized = true
     if (isRedirect(response.status)) {
       redirected = response.status
@@ -112,8 +113,9 @@ const withClient = async <A>(target: UpstreamTarget, use: (client: Client) => Pr
   }
 }
 
-export const listUpstreamTools = (target: UpstreamTarget): Promise<ReadonlyArray<McpTool>> =>
-  withClient(target, async (client) => decodeTools((await client.listTools()).tools))
+/** `signal` aborts the listing's requests, so a timed-out listing stops talking to the server. */
+export const listUpstreamTools = (target: UpstreamTarget, signal?: AbortSignal): Promise<ReadonlyArray<McpTool>> =>
+  withClient(target, async (client) => decodeTools((await client.listTools(undefined, signal === undefined ? undefined : { signal })).tools), signal)
 
 export const callUpstreamTool = (target: UpstreamTarget, name: string, args: Readonly<Record<string, unknown>>): Promise<ToolResult> =>
   withClient(target, async (client) => decodeResult(await client.callTool({ name, arguments: { ...args } })))

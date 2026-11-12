@@ -3,7 +3,8 @@ import { Context, Duration, Effect, Layer, Option, Schema } from "effect"
 import { canonicalJson } from "../../audit/canonical-json"
 import { WorkersAi } from "../../platform/ai"
 import { AppConfig, backgroundModel } from "../../platform/config"
-import { KvCache } from "../../platform/kv"
+import { logBindingFailure } from "../../platform/binding-call"
+import { KvCache, missOnFailure } from "../../platform/kv"
 import { redactCredentials } from "../classifier-state"
 import type { ToolDoc } from "../grounding/tool-doc"
 import { exampleJsonSchema, exampleMessages } from "./example-prompt"
@@ -90,7 +91,7 @@ export class ExampleCalls extends Context.Service<ExampleCalls, {
 
       const forRule = Effect.fn("ExampleCalls.forRule")(function*(rule: string, tools: ReadonlyArray<ToolDoc>) {
         const keyed = yield* Effect.forEach(tools, (doc) => Effect.map(Effect.flatMap(schemaHash(doc), (hash) => exampleKey(doc, hash, rule)), (key) => ({ doc, key })))
-        const cached = yield* Effect.forEach(keyed, ({ doc, key }) => Effect.map(cache.get(key, CachedCalls), (hit) => ({ doc, key, hit })))
+        const cached = yield* Effect.forEach(keyed, ({ doc, key }) => Effect.map(missOnFailure(cache.get(key, CachedCalls)), (hit) => ({ doc, key, hit })))
         const missing = cached.filter((entry) => Option.isNone(entry.hit))
         yield* Effect.annotateCurrentSpan({ "examples.tools": tools.length, "examples.generated": missing.length })
         const fresh = missing.length === 0
@@ -98,7 +99,7 @@ export class ExampleCalls extends Context.Service<ExampleCalls, {
           : yield* generate(rule, missing.map((entry) => entry.doc)).pipe(
             Effect.tap((generated) => Effect.forEach(missing, ({ doc, key }) => {
               const calls = generated.get(doc.name) ?? []
-              return calls.length === 0 ? Effect.void : cache.set(key, CachedCalls, calls, ExampleTtlSeconds)
+              return calls.length === 0 ? Effect.void : cache.set(key, CachedCalls, calls, ExampleTtlSeconds).pipe(logBindingFailure("example calls cache write"))
             })),
             Effect.catch((error) => Effect.as(Effect.logWarning("example generation failed", String(error)), new Map<string, ReadonlyArray<CachedCall>>()))
           )

@@ -1,4 +1,4 @@
-import { Authentication, CurrentPrincipal, CurrentUser, SessionAuthentication, Unauthorized } from "@pc/domain"
+import { Authentication, CurrentPrincipal, CurrentUser, SessionAuthentication, Unauthorized, type UpstreamFailure } from "@pc/domain"
 import { Effect, Layer, Option, Redacted } from "effect"
 import { HttpServerRequest } from "effect/http"
 import { TokenAuthenticator } from "../access/token-auth"
@@ -16,7 +16,7 @@ const isEmpty = (credential: Redacted.Redacted<string>) => Redacted.value(creden
  * user whose session is valid but has no org must get `no_organization`, not the bearer scheme's
  * `missing_credentials`, so the session outcome is remembered per request.
  */
-const sessionFailures = new WeakMap<HttpServerRequest.HttpServerRequest, Unauthorized>()
+const sessionFailures = new WeakMap<HttpServerRequest.HttpServerRequest, Unauthorized | UpstreamFailure>()
 
 const annotate = (attributes: Record<string, unknown>) => Effect.annotateCurrentSpan(attributes)
 

@@ -1,5 +1,6 @@
 import {
   type AuditExportQuery,
+  type AuditUnavailable,
   type AuditPage,
   type AuditQuery,
   type ChainVerification,
@@ -22,7 +23,7 @@ const MaxExportDays = 366
 export class AuditReader extends Context.Service<AuditReader, {
   readonly list: (principal: Principal, query: AuditQuery) => Effect.Effect<AuditPage, Forbidden>
   readonly deliveries: (principal: Principal) => Effect.Effect<ReadonlyArray<DeliverySummary>, Forbidden>
-  readonly verify: (principal: Principal, fromSeq: number) => Effect.Effect<ChainVerification, Forbidden>
+  readonly verify: (principal: Principal, fromSeq: number) => Effect.Effect<ChainVerification, Forbidden | AuditUnavailable>
   readonly export: (principal: Principal, query: AuditExportQuery) => Effect.Effect<string, Forbidden | InvalidInput>
 }>()("api/audit/AuditReader") {
   static readonly layer = Layer.effect(

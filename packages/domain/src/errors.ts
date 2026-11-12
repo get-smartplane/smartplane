@@ -78,3 +78,10 @@ export class RateLimited extends Schema.TaggedError<RateLimited>()(
   { retryAfterSeconds: Schema.Int },
   { httpApiStatus: 429 }
 ) {}
+
+/** A Cloudflare binding (KV, R2, a queue, a Durable Object) rejected a call; usually transient. */
+export class BindingFailure extends Schema.TaggedError<BindingFailure>()(
+  "BindingFailure",
+  { binding: Schema.String, operation: Schema.String, message: Schema.String },
+  { httpApiStatus: 503 }
+) {}

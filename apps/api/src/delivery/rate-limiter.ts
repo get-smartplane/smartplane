@@ -1,4 +1,6 @@
+import type { BindingFailure } from "@pc/domain"
 import { Clock, Context, Effect, Layer } from "effect"
+import { bindingCall } from "../platform/binding-call"
 import { WorkerBindings } from "../platform/bindings"
 import { hitWindow, type RateDecision, type RateRule, type WindowState } from "./fixed-window"
 
@@ -10,7 +12,7 @@ export const DeliveryRateRules = {
 
 /** Counts hits per key. Production: one `RateLimiter` Durable Object per key; tests: an in-memory map on the Effect clock. */
 export class RateLimiter extends Context.Service<RateLimiter, {
-  readonly hit: (key: string, rule: RateRule) => Effect.Effect<RateDecision>
+  readonly hit: (key: string, rule: RateRule) => Effect.Effect<RateDecision, BindingFailure>
 }>()("api/delivery/RateLimiter") {
   static readonly layer = Layer.effect(
     RateLimiter,
@@ -18,7 +20,7 @@ export class RateLimiter extends Context.Service<RateLimiter, {
       const namespace = (yield* WorkerBindings).RATE_LIMITER
       return RateLimiter.of({
         hit: Effect.fn("RateLimiter.hit")(function*(key: string, rule: RateRule) {
-          const retryAfterSeconds = yield* Effect.promise(() => namespace.get(namespace.idFromName(key)).hit(rule.limit, rule.windowMs))
+          const retryAfterSeconds = yield* bindingCall("RATE_LIMITER", "hit", () => namespace.get(namespace.idFromName(key)).hit(rule.limit, rule.windowMs))
           const decision: RateDecision = retryAfterSeconds > 0 ? { _tag: "Limited", retryAfterSeconds } : { _tag: "Allowed" }
           return decision
         })

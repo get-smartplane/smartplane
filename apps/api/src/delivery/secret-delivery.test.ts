@@ -1,10 +1,11 @@
 import { assert, describe, it } from "@effect/vitest"
-import { type AuditEvent, ProjectId, RoleSlug } from "@pc/domain"
-import { DateTime, Effect, Logger, Tracer } from "effect"
+import { type AuditEvent, BindingFailure, ProjectId, RoleSlug } from "@pc/domain"
+import { DateTime, Effect, Layer, Logger, Tracer } from "effect"
 import { TestClock } from "effect/testing"
 import { asMember, createSecret, createVariable, deliver, deliveryServices, envOf, grant } from "../testing/delivery-world"
 import { now, orgId, serviceAccountPrincipal, userId, userPrincipal } from "../testing/fixtures"
 import { insertRow, seedOrg } from "../testing/seed"
+import { RateLimiter } from "./rate-limiter"
 
 const projectA = ProjectId.make("prj_projecta01")
 const projectB = ProjectId.make("prj_projectb01")
@@ -125,4 +126,13 @@ describe("secret delivery to members", () => {
       yield* TestClock.adjust("1 minute")
       yield* deliver(asMember(tokenUser), { purpose: "run" })
     }).pipe(Effect.provide(deliveryServices([]))))
+
+  it.effect("refuses delivery when the rate limiter cannot be reached, rather than delivering unlimited", () => {
+    const unreachable = Layer.succeed(RateLimiter, { hit: () => Effect.fail(new BindingFailure({ binding: "RATE_LIMITER", operation: "hit", message: "Durable Object reset" })) })
+    return Effect.gen(function*() {
+      yield* seed
+      yield* grant("grt_stripe0001", yield* createSecret("stripe-key", "sk_live_stripe", { deliverable: true }))
+      assert.strictEqual(yield* failure(deliver(asMember(), { purpose: "run" })), "BindingFailure")
+    }).pipe(Effect.provide(deliveryServices([], undefined, unreachable)))
+  })
 })
