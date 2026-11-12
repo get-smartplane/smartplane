@@ -5,11 +5,10 @@ import { TokenAuthenticator, TokenPrefix } from "../access/token-auth"
 import { OAuthAuthenticator } from "../oauth/authenticator"
 import { oauthSettings } from "../oauth/settings"
 import { AppConfig } from "../platform/config"
-import { McpGateway } from "./gateway"
+import { gatewayHandlers } from "./bridge"
 import { ProjectHeader, scopeToProject } from "./project-scope"
 import { serveMcp } from "./sdk"
 import { decodeToolsMode, ToolsHeader, type ToolsMode } from "./search/mode"
-import { SkillGateway } from "./skills/skill-gateway"
 
 const bearer = HttpServerRequest.HttpServerRequest.useSync((request) => {
   const match = /^bearer\s+(.+)$/i.exec(request.headers.authorization ?? "")
@@ -40,22 +39,13 @@ export const authenticate = (token: Redacted.Redacted<string>): Effect.Effect<Pr
     ? TokenAuthenticator.use((tokens) => tokens.authenticate(token))
     : OAuthAuthenticator.use((oauth) => oauth.authenticate(token))
 
-/** Bridges the SDK's promise-based handlers back into Effect, keeping the request's tracing context. */
+/** Serves one MCP request through the SDK with handlers bridged to the gateway (see `gatewayHandlers`). */
 const handle = (principal: Principal, mode: ToolsMode | undefined) =>
   Effect.gen(function*() {
-    const gateway = yield* McpGateway
-    const skills = yield* SkillGateway
-    const run = Effect.runPromiseWith(yield* Effect.context<never>())
+    const handlers = yield* gatewayHandlers(principal, mode)
     const request = yield* Effect.orDie(HttpServerRequest.HttpServerRequest.use(HttpServerRequest.toWeb))
     const response = yield* Effect.promise(async () => {
-      const streamed = await serveMcp(request, {
-        listTools: () => run(gateway.listTools(principal, mode)),
-        callTool: (name, args) => run(gateway.callTool(principal, name, args)),
-        listPrompts: () => run(skills.listPrompts(principal)),
-        getPrompt: (name, args) => run(Effect.result(skills.getPrompt(principal, name, args))),
-        listResources: () => run(skills.listResources(principal)),
-        readResource: (uri) => run(Effect.result(skills.readResource(principal, uri)))
-      })
+      const streamed = await serveMcp(request, handlers)
       // A stateless POST's SSE stream ends right after the JSON-RPC reply. Buffering it keeps the tool call
       // inside this request's span and Worker invocation, so its spans are exported rather than cut off.
       if (request.method !== "POST" || streamed.body === null) return streamed
