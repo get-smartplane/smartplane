@@ -9,7 +9,8 @@ import { SkillVersionsRepo } from "../skills/storage/versions-repo"
 import { TestDatabase } from "../testing/database"
 import { now, orgId, userPrincipal } from "../testing/fixtures"
 import { insertRow, seedOrg, seedResource, seedUserGrant } from "../testing/seed"
-import { chunksOf, inChunks } from "./sql-chunks"
+import { chunksOf } from "./chunks"
+import { inChunks } from "./sql-chunks"
 
 const layer = AccessPolicy.layer.pipe(
   Layer.provideMerge(Layer.mergeAll(ResourcesRepo.layer, GrantsRepo.layer, SkillVersionsRepo.layer)),

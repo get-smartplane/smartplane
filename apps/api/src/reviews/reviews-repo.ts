@@ -13,7 +13,7 @@ import {
 import { D1Client } from "@effect/sql-d1"
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect"
 import { decodeFirst, decodeRows, encodeRow, JsonColumn } from "../platform/sql"
-import { chunksOf } from "../platform/sql-chunks"
+import { chunksOf } from "../platform/chunks"
 
 const ReviewRow = Schema.toCodecJson(Schema.Struct({ ...AccessReview.fields, scope: JsonColumn(AccessReviewScope) })).pipe(
   Schema.decodeTo(AccessReview)

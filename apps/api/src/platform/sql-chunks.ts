@@ -1,11 +1,9 @@
 import { Effect } from "effect"
+import { chunksOf } from "./chunks"
 
 /** D1 allows at most 100 bound parameters per statement; this leaves room for the org id and a few filters. */
 export const IdsPerQuery = 90
 
-/** Splits `items` into consecutive groups of at most `size`. */
-export const chunksOf = <A>(items: ReadonlyArray<A>, size: number): ReadonlyArray<ReadonlyArray<A>> =>
-  Array.from({ length: Math.ceil(items.length / size) }, (_, index) => items.slice(index * size, (index + 1) * size))
 
 /**
  * Runs `query` once per group of at most `IdsPerQuery` ids and concatenates the rows, so an `IN (…)` list

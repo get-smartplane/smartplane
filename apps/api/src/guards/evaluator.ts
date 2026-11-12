@@ -38,7 +38,7 @@ export interface Evaluation {
 }
 
 /**
- * Evaluates every guard that applies to an action in a single Clef call. Which guards apply is decided in
+ * Evaluates every guard that applies to an action with Clef (one call per 64 guards). Which guards apply is decided in
  * code first (resource scope, then each guard's accepted call filter); with none, Clef is not called.
  */
 export class GuardEvaluator extends Context.Service<GuardEvaluator, {

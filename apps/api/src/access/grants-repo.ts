@@ -2,7 +2,8 @@ import { Grant, GrantConditions, type GrantFilter, type GrantId, GrantSubject, t
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect"
 import { SqlClient } from "effect/sql"
 import { decodeFirst, decodeRows, encodeRow, JsonColumn } from "../platform/sql"
-import { chunksOf, IdsPerQuery } from "../platform/sql-chunks"
+import { chunksOf } from "../platform/chunks"
+import { IdsPerQuery } from "../platform/sql-chunks"
 import { subjectKey, type SubjectKey } from "./subjects"
 
 const GrantRow = Schema.toCodecJson(
