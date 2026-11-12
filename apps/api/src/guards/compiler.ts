@@ -2,6 +2,7 @@ import { type CompiledGuard, type GuardToolCall, type ModelTimedOut, UpstreamFai
 import { Clock, Context, Duration, Effect, Layer, Schema } from "effect"
 import { WorkersAi } from "../platform/ai"
 import { AppConfig, backgroundModel } from "../platform/config"
+import { warnOnFailure } from "../platform/warn-on-failure"
 import { keepBroad } from "./compile/breadth"
 import { emptyDirectory, type OrgDirectory } from "./compile/directory"
 import { CompilerResponse, type CompilerDraft, draftCalls, draftOf, examplesOf, operationsOf } from "./compile/draft"
@@ -134,7 +135,7 @@ export class GuardCompiler extends Context.Service<GuardCompiler, {
         const { prompt, finish, patient, timeout } = prepare(rule, orgContext, directory, options)
         // One corrective retry; keep whichever draft has fewer problems. A failed or late correction keeps the first.
         const correction = [options.feedback, ...first.issues.map((issue) => `- ${issue.detail}`)].filter((line) => line !== undefined).join("\n")
-        const second = yield* draft(rule, orgContext, prompt, correction, options.timeout === undefined ? timeout : Duration.min(timeout, options.timeout), patient).pipe(Effect.map(finish), Effect.option)
+        const second = yield* draft(rule, orgContext, prompt, correction, options.timeout === undefined ? timeout : Duration.min(timeout, options.timeout), patient).pipe(Effect.map(finish), warnOnFailure("guard compiler correction failed"), Effect.option)
         if (second._tag === "None") return first.result
         return second.value.issues.length < first.issues.length ? second.value.result : first.result
       })

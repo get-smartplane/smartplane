@@ -11,6 +11,7 @@ import { AppConfig } from "../../platform/config"
 import { Ids } from "../../platform/ids"
 import { KvCache } from "../../platform/kv"
 import { logBindingFailure } from "../../platform/binding-call"
+import { warnOnFailure } from "../../platform/warn-on-failure"
 import { ResourcesRepo } from "../../resources/resources-repo"
 import { Secrets } from "../../secrets/secrets"
 import { ConnectionsRepo } from "../connections-repo"
@@ -67,7 +68,7 @@ export class ConnectionCallback extends Context.Service<ConnectionCallback, {
             ...(pending.resource === undefined ? {} : { resource: pending.resource })
           }
           return yield* tokenSetFrom(yield* endpoint.request(pending.tokenUrl, client, grant), yield* Clock.currentTimeMillis)
-        }).pipe(Effect.option)
+        }).pipe(warnOnFailure("connection code exchange failed"), Effect.option)
 
       /** First success with an admin-supplied client: from now on only this authorization server may be used. */
       const pin = (principal: Principal, resource: Resource, pending: PendingConnection) =>
